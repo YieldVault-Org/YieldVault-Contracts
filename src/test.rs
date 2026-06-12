@@ -173,3 +173,30 @@ fn test_second_depositor_gets_fewer_shares_after_yield() {
     assert_eq!(t.vault.total_shares(), 1_500);
     assert_eq!(t.vault.total_assets(), 3_000);
 }
+
+#[test]
+fn test_withdraw_more_than_balance_fails() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 1_000);
+    let shares = t.vault.deposit(&user, &1_000u128);
+
+    let res = t.vault.try_withdraw(&user, &(shares + 1));
+    assert_eq!(res, Err(Ok(crate::Error::InsufficientShares)));
+}
+
+#[test]
+fn test_zero_deposit_fails() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    let res = t.vault.try_deposit(&user, &0u128);
+    assert_eq!(res, Err(Ok(crate::Error::ZeroAmount)));
+}
+
+#[test]
+fn test_zero_withdraw_fails() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    let res = t.vault.try_withdraw(&user, &0u128);
+    assert_eq!(res, Err(Ok(crate::Error::ZeroShares)));
+}

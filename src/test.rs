@@ -335,6 +335,25 @@ fn test_max_withdraw_matches_share_value() {
 }
 
 #[test]
+fn test_min_deposit_guard_rejects_small_deposits() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 1_000);
+
+    // Admin raises the minimum deposit above a small amount.
+    t.vault.set_min_deposit(&100u128);
+    assert_eq!(t.vault.get_min_deposit(), 100);
+
+    // A deposit under the minimum is rejected.
+    let res = t.vault.try_deposit(&user, &50u128);
+    assert_eq!(res, Err(Ok(crate::Error::BelowMinimumDeposit)));
+
+    // A deposit at the minimum succeeds.
+    let shares = t.vault.deposit(&user, &100u128);
+    assert_eq!(shares, 100);
+}
+
+#[test]
 fn test_share_fraction_bps_helper() {
     use crate::math::share_fraction_bps;
     // No shares means no claim, reported as zero.

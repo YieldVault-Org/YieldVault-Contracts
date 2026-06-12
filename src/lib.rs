@@ -58,4 +58,19 @@ impl YieldVault {
         }
         Ok(storage::get_token(&env))
     }
+
+    /// Returns the total number of shares minted by the vault.
+    pub fn total_shares(env: Env) -> u128 {
+        storage::get_total_shares(&env)
+    }
+
+    /// Returns the total amount of underlying assets held by the vault.
+    pub fn total_assets(env: Env) -> u128 {
+        storage::get_total_assets(&env)
+    }
+
+    /// Returns the share balance of `user`.
+    pub fn balance_of(env: Env, user: Address) -> u128 {
+        storage::get_balance(&env, &user)
+    }
 }

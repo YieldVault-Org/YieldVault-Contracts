@@ -143,6 +143,26 @@ impl YieldVault {
         storage::get_min_deposit(&env)
     }
 
+    /// Returns `true` if the vault is paused for new deposits.
+    pub fn is_paused(env: Env) -> bool {
+        storage::is_paused(&env)
+    }
+
+    /// Pauses or resumes the vault's acceptance of new deposits.
+    ///
+    /// Withdrawals remain available while paused so depositors can always exit.
+    /// Admin-only: requires authorization from the configured admin address.
+    pub fn set_paused(env: Env, paused: bool) -> Result<(), Error> {
+        storage::require_initialized(&env)?;
+        let admin = storage::get_admin(&env);
+        admin.require_auth();
+
+        storage::set_paused(&env, paused);
+        storage::extend_instance(&env);
+        events::paused(&env, paused);
+        Ok(())
+    }
+
     /// Updates the minimum accepted deposit amount.
     ///
     /// Admin-only: requires authorization from the configured admin address.
@@ -185,6 +205,9 @@ impl YieldVault {
         storage::require_initialized(&env)?;
         from.require_auth();
 
+        if storage::is_paused(&env) {
+            return Err(Error::Paused);
+        }
         if amount == 0 {
             return Err(Error::ZeroAmount);
         }

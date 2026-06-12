@@ -91,3 +91,21 @@ fn test_first_deposit_mints_one_to_one() {
     assert_eq!(t.token.balance(&user), 0);
     assert_eq!(t.token.balance(&t.vault.address), 1_000);
 }
+
+#[test]
+fn test_deposit_then_full_withdraw_round_trip() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 1_000);
+
+    let shares = t.vault.deposit(&user, &1_000u128);
+    let assets = t.vault.withdraw(&user, &shares);
+
+    // With no yield in between, the round trip returns the original assets.
+    assert_eq!(assets, 1_000);
+    assert_eq!(t.vault.balance_of(&user), 0);
+    assert_eq!(t.vault.total_shares(), 0);
+    assert_eq!(t.vault.total_assets(), 0);
+    assert_eq!(t.token.balance(&user), 1_000);
+    assert_eq!(t.token.balance(&t.vault.address), 0);
+}

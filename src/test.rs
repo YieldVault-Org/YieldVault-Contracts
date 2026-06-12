@@ -64,3 +64,13 @@ fn test_double_initialize_fails() {
     let res = t.vault.try_initialize(&other, &t.token.address);
     assert_eq!(res, Err(Ok(crate::Error::AlreadyInitialized)));
 }
+
+#[test]
+fn test_initial_state_is_empty() {
+    let t = VaultTest::setup();
+    assert_eq!(t.vault.total_shares(), 0);
+    assert_eq!(t.vault.total_assets(), 0);
+    let user = Address::generate(&t.env);
+    assert_eq!(t.vault.balance_of(&user), 0);
+    assert_eq!(t.vault.get_apy(), 500);
+}

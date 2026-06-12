@@ -89,6 +89,17 @@ impl YieldVault {
         math::convert_to_shares(assets, total_shares, total_assets)
     }
 
+    /// Previews how many shares a [`Self::deposit`] of `assets` would mint at
+    /// the current exchange rate, without modifying any state.
+    ///
+    /// This is the ERC4626-style alias for [`Self::convert_to_shares`], provided
+    /// so integrators can use the conventional preview naming.
+    pub fn preview_deposit(env: Env, assets: u128) -> Result<u128, Error> {
+        let total_shares = storage::get_total_shares(&env);
+        let total_assets = storage::get_total_assets(&env);
+        math::convert_to_shares(assets, total_shares, total_assets)
+    }
+
     /// Returns the value of a single share in underlying assets, scaled by
     /// [`types::PRICE_SCALE`] to preserve fractional precision.
     ///

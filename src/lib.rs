@@ -73,4 +73,20 @@ impl YieldVault {
     pub fn balance_of(env: Env, user: Address) -> u128 {
         storage::get_balance(&env, &user)
     }
+
+    /// Previews how many shares would be minted for depositing `assets` at the
+    /// current exchange rate.
+    pub fn convert_to_shares(env: Env, assets: u128) -> Result<u128, Error> {
+        let total_shares = storage::get_total_shares(&env);
+        let total_assets = storage::get_total_assets(&env);
+        math::convert_to_shares(assets, total_shares, total_assets)
+    }
+
+    /// Previews how many underlying assets `shares` would redeem for at the
+    /// current exchange rate.
+    pub fn convert_to_assets(env: Env, shares: u128) -> Result<u128, Error> {
+        let total_shares = storage::get_total_shares(&env);
+        let total_assets = storage::get_total_assets(&env);
+        math::convert_to_assets(shares, total_shares, total_assets)
+    }
 }

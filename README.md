@@ -29,12 +29,32 @@ of the underlying token.
 | `accrue_yield(amount)` | Admin-only mock yield accrual. |
 | `convert_to_shares(assets)` | Preview shares for a given asset amount. |
 | `convert_to_assets(shares)` | Preview assets for a given share amount. |
+| `preview_deposit(assets)` | ERC4626-style alias of `convert_to_shares`. |
+| `preview_withdraw(shares)` | ERC4626-style alias of `convert_to_assets`. |
 | `price_per_share()` | Value of one share, scaled by `PRICE_SCALE`. |
 | `max_withdraw(user)` | Assets redeemable for a user's full balance. |
+| `max_redeem(user)` | Shares redeemable for a user (their balance). |
+| `share_percentage(user)` | A user's share of the vault, in basis points. |
 | `get_apy()` | Advertised APY in basis points. |
 | `is_initialized()` | Whether the vault has been set up. |
+| `is_paused()` | Whether deposits are currently paused. |
 | `version()` | On-chain contract interface version. |
+| `get_min_deposit()` | The smallest accepted deposit amount. |
 | `get_admin()` / `get_token()` | Configuration getters. |
+
+## Admin operations
+
+The configured admin address authorizes the following privileged entrypoints:
+
+| Function | Description |
+| --- | --- |
+| `accrue_yield(amount)` | Apply mock yield, raising the value of every share. |
+| `set_paused(paused)` | Pause or resume new deposits; withdrawals stay open. |
+| `set_min_deposit(amount)` | Set the minimum accepted deposit amount. |
+| `set_admin(new_admin)` | Transfer the admin role to another address. |
+
+While the vault is paused, `deposit` returns `Paused` but `withdraw` continues
+to work so depositors can always exit their position.
 
 ## Architecture
 

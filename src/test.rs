@@ -227,3 +227,32 @@ fn test_convert_helpers_on_empty_vault() {
     assert_eq!(convert_to_shares(100, 0, 0), Ok(100));
     assert_eq!(convert_to_assets(100, 0, 0), Ok(0));
 }
+
+#[test]
+fn test_preview_matches_deposit() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 1_000);
+
+    // The convert_to_shares preview should match the shares actually minted.
+    let preview = t.vault.convert_to_shares(&400u128);
+    let minted = t.vault.deposit(&user, &400u128);
+    assert_eq!(preview, minted);
+}
+
+#[test]
+fn test_partial_withdraw_keeps_remaining_shares() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 1_000);
+
+    let shares = t.vault.deposit(&user, &1_000u128);
+    let half = shares / 2;
+    let assets = t.vault.withdraw(&user, &half);
+
+    assert_eq!(assets, 500);
+    assert_eq!(t.vault.balance_of(&user), half);
+    assert_eq!(t.vault.total_shares(), half);
+    assert_eq!(t.vault.total_assets(), 500);
+    assert_eq!(t.token.balance(&user), 500);
+}

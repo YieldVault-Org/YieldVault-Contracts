@@ -46,6 +46,14 @@ impl YieldVault {
         Ok(())
     }
 
+    /// Returns `true` if the vault has been initialized.
+    ///
+    /// Unlike the other getters this never errors, so callers can probe the
+    /// vault's setup state without handling [`Error::NotInitialized`].
+    pub fn is_initialized(env: Env) -> bool {
+        storage::has_admin(&env)
+    }
+
     /// Returns the vault administrator address.
     pub fn get_admin(env: Env) -> Result<Address, Error> {
         storage::require_initialized(&env)?;

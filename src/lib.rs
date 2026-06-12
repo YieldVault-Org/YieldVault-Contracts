@@ -138,4 +138,58 @@ impl YieldVault {
         events::deposit(&env, &from, amount, shares);
         Ok(shares)
     }
+
+    /// Burns `shares` from `from` and returns the corresponding amount of
+    /// underlying assets, transferring them back to `from`.
+    ///
+    /// Requires authorization from `from`. Returns [`Error::InsufficientShares`]
+    /// if `from` does not hold enough shares.
+    pub fn withdraw(env: Env, from: Address, shares: u128) -> Result<u128, Error> {
+        if !storage::has_admin(&env) {
+            return Err(Error::NotInitialized);
+        }
+        from.require_auth();
+
+        if shares == 0 {
+            return Err(Error::ZeroShares);
+        }
+
+        let user_balance = storage::get_balance(&env, &from);
+        if user_balance < shares {
+            return Err(Error::InsufficientShares);
+        }
+
+        let total_shares = storage::get_total_shares(&env);
+        let total_assets = storage::get_total_assets(&env);
+        let assets = math::convert_to_assets(shares, total_shares, total_assets)?;
+        if assets == 0 {
+            return Err(Error::ZeroAmount);
+        }
+
+        let new_total_shares = total_shares
+            .checked_sub(shares)
+            .ok_or(Error::MathOverflow)?;
+        let new_total_assets = total_assets
+            .checked_sub(assets)
+            .ok_or(Error::MathOverflow)?;
+        let new_user_balance = user_balance
+            .checked_sub(shares)
+            .ok_or(Error::MathOverflow)?;
+
+        storage::set_total_shares(&env, new_total_shares);
+        storage::set_total_assets(&env, new_total_assets);
+        storage::set_balance(&env, &from, new_user_balance);
+
+        let token_address = storage::get_token(&env);
+        let client = token::Client::new(&env, &token_address);
+        client.transfer(
+            &env.current_contract_address(),
+            &from,
+            &(assets as i128),
+        );
+
+        storage::extend_instance(&env);
+        events::withdraw(&env, &from, shares, assets);
+        Ok(assets)
+    }
 }

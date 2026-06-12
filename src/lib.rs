@@ -41,6 +41,10 @@ impl YieldVault {
         }
         storage::set_admin(&env, &admin);
         storage::set_token(&env, &token);
+        // Seed the configurable defaults so their stored values are explicit
+        // from the outset rather than relying solely on read-time fallbacks.
+        storage::set_min_deposit(&env, types::DEFAULT_MIN_DEPOSIT);
+        storage::set_paused(&env, false);
         storage::extend_instance(&env);
         events::initialize(&env, &admin, &token);
         Ok(())

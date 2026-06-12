@@ -1,3 +1,10 @@
+//! Storage accessors for the YieldVault contract.
+//!
+//! Configuration and aggregate totals live in *instance* storage, which shares
+//! its time-to-live with the contract instance itself. Per-user share balances
+//! live in *persistent* storage and are extended on every read and write so
+//! that active users do not have their balances archived.
+
 use soroban_sdk::{Address, Env};
 
 use crate::error::Error;

@@ -1,3 +1,9 @@
+//! Shared types and compile-time constants for the YieldVault contract.
+//!
+//! This module collects the storage [`DataKey`] enum together with the tunable
+//! constants (mock APY, contract version, price scale) so they live in one
+//! place and can be referenced consistently across the contract.
+
 use soroban_sdk::{contracttype, Address};
 
 /// The vault's advertised mock APY, in basis points (500 == 5.00%).

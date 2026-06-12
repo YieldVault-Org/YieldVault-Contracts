@@ -54,6 +54,18 @@ pub fn price_per_share(
     mul_div(total_assets, scale, total_shares)
 }
 
+/// Computes what fraction of the vault `shares` represents, expressed in
+/// basis points (`bps`, where `10_000` bps == 100%).
+///
+/// Returns zero when no shares exist, and rounds down otherwise so the figure
+/// never overstates an account's claim on the vault.
+pub fn share_fraction_bps(shares: u128, total_shares: u128, bps: u128) -> Result<u128, Error> {
+    if total_shares == 0 {
+        return Ok(0);
+    }
+    mul_div(shares, bps, total_shares)
+}
+
 /// Converts an amount of vault `shares` into the underlying assets they are
 /// redeemable for: `shares * total_assets / total_shares`, rounding down.
 ///

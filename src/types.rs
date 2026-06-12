@@ -16,6 +16,10 @@ pub const VERSION: u32 = 1;
 /// fractional share prices survive integer division (1e9 == one whole asset).
 pub const PRICE_SCALE: u128 = 1_000_000_000;
 
+/// Number of basis points in 100% (10_000 bps == 100.00%), used when reporting
+/// proportional figures such as an account's share of the vault.
+pub const BPS_DENOMINATOR: u128 = 10_000;
+
 /// Keys used to address values in contract storage.
 #[contracttype]
 #[derive(Clone)]

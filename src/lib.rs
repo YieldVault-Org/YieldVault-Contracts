@@ -138,6 +138,17 @@ impl YieldVault {
         math::convert_to_assets(shares, total_shares, total_assets)
     }
 
+    /// Returns the fraction of the vault owned by `user`, expressed in basis
+    /// points (`10_000` bps == 100%).
+    ///
+    /// Reports zero for an empty vault and rounds down, so the figure never
+    /// overstates a user's claim on the vault's assets.
+    pub fn share_percentage(env: Env, user: Address) -> Result<u128, Error> {
+        let shares = storage::get_balance(&env, &user);
+        let total_shares = storage::get_total_shares(&env);
+        math::share_fraction_bps(shares, total_shares, types::BPS_DENOMINATOR)
+    }
+
     /// Returns the maximum number of shares `user` can redeem, which is simply
     /// their current share balance.
     ///

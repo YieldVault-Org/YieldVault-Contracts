@@ -25,4 +25,6 @@ pub enum Error {
     ZeroShares = 6,
     /// The caller does not hold enough shares for the requested operation.
     InsufficientShares = 7,
+    /// The deposit amount is below the vault's configured minimum.
+    BelowMinimumDeposit = 8,
 }

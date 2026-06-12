@@ -20,6 +20,10 @@ pub const PRICE_SCALE: u128 = 1_000_000_000;
 /// proportional figures such as an account's share of the vault.
 pub const BPS_DENOMINATOR: u128 = 10_000;
 
+/// Default minimum deposit applied when the vault is initialized, guarding
+/// against dust deposits that would round down to zero shares.
+pub const DEFAULT_MIN_DEPOSIT: u128 = 1;
+
 /// Keys used to address values in contract storage.
 #[contracttype]
 #[derive(Clone)]
@@ -32,6 +36,8 @@ pub enum DataKey {
     TotalShares,
     /// The total amount of underlying assets held by the vault (instance storage).
     TotalAssets,
+    /// The minimum accepted deposit amount (instance storage).
+    MinDeposit,
     /// A user's share balance, keyed by their address (persistent storage).
     Balance(Address),
 }

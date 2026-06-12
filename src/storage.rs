@@ -96,6 +96,20 @@ pub fn set_total_assets(env: &Env, assets: u128) {
     env.storage().instance().set(&DataKey::TotalAssets, &assets);
 }
 
+/// Reads the minimum accepted deposit, defaulting to
+/// [`crate::types::DEFAULT_MIN_DEPOSIT`] when unset.
+pub fn get_min_deposit(env: &Env) -> u128 {
+    env.storage()
+        .instance()
+        .get(&DataKey::MinDeposit)
+        .unwrap_or(crate::types::DEFAULT_MIN_DEPOSIT)
+}
+
+/// Writes the minimum accepted deposit amount.
+pub fn set_min_deposit(env: &Env, amount: u128) {
+    env.storage().instance().set(&DataKey::MinDeposit, &amount);
+}
+
 /// Reads a user's share balance from persistent storage, defaulting to zero.
 pub fn get_balance(env: &Env, user: &Address) -> u128 {
     let key = DataKey::Balance(user.clone());

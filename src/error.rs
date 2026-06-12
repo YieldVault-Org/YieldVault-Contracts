@@ -1,3 +1,9 @@
+//! Error definitions for the YieldVault contract.
+//!
+//! Each variant maps to a stable `u32` code so that callers and off-chain
+//! tooling can rely on the numbering across releases. Append new variants with
+//! the next free number rather than renumbering existing ones.
+
 use soroban_sdk::contracterror;
 
 /// Errors that can be returned by the YieldVault contract.

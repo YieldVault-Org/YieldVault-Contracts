@@ -138,6 +138,15 @@ impl YieldVault {
         math::convert_to_assets(shares, total_shares, total_assets)
     }
 
+    /// Returns the maximum number of shares `user` can redeem, which is simply
+    /// their current share balance.
+    ///
+    /// Provided as the ERC4626-style counterpart to [`Self::max_withdraw`],
+    /// which reports the same position denominated in underlying assets.
+    pub fn max_redeem(env: Env, user: Address) -> u128 {
+        storage::get_balance(&env, &user)
+    }
+
     /// Deposits `amount` of the underlying token from `from` into the vault,
     /// minting and returning the number of shares credited to `from`.
     ///

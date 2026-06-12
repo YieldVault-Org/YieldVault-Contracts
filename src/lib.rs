@@ -60,6 +60,21 @@ impl YieldVault {
         Ok(storage::get_admin(&env))
     }
 
+    /// Transfers the admin role to `new_admin`.
+    ///
+    /// Admin-only: requires authorization from the current admin. Emits a
+    /// `set_admin` event recording the previous and new admin addresses.
+    pub fn set_admin(env: Env, new_admin: Address) -> Result<(), Error> {
+        storage::require_initialized(&env)?;
+        let current = storage::get_admin(&env);
+        current.require_auth();
+
+        storage::set_admin(&env, &new_admin);
+        storage::extend_instance(&env);
+        events::set_admin(&env, &current, &new_admin);
+        Ok(())
+    }
+
     /// Returns the underlying asset token address.
     pub fn get_token(env: Env) -> Result<Address, Error> {
         storage::require_initialized(&env)?;

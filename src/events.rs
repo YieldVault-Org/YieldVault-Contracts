@@ -40,3 +40,11 @@ pub fn paused(env: &Env, paused: bool) {
     let topics = (Symbol::new(env, "paused"),);
     env.events().publish(topics, paused);
 }
+
+/// Publishes a `set_admin` event recording the transfer of the admin role from
+/// `previous` to `new_admin`.
+pub fn set_admin(env: &Env, previous: &Address, new_admin: &Address) {
+    let topics = (Symbol::new(env, "set_admin"),);
+    env.events()
+        .publish(topics, (previous.clone(), new_admin.clone()));
+}

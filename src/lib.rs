@@ -217,4 +217,13 @@ impl YieldVault {
         events::accrue_yield(&env, amount, total_assets);
         Ok(())
     }
+
+    /// Returns the vault's advertised annual percentage yield, expressed in
+    /// basis points (1% == 100 basis points).
+    ///
+    /// This is a fixed mock figure for demonstration purposes; a production
+    /// vault would derive it from observed yield over time.
+    pub fn get_apy(_env: Env) -> u32 {
+        types::MOCK_APY_BPS
+    }
 }

@@ -335,6 +335,34 @@ fn test_max_withdraw_matches_share_value() {
 }
 
 #[test]
+fn test_pause_blocks_deposit_but_allows_withdraw() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 2_000);
+
+    let shares = t.vault.deposit(&user, &1_000u128);
+    assert!(!t.vault.is_paused());
+
+    // Admin pauses the vault.
+    t.vault.set_paused(&true);
+    assert!(t.vault.is_paused());
+
+    // New deposits are rejected while paused.
+    let res = t.vault.try_deposit(&user, &1_000u128);
+    assert_eq!(res, Err(Ok(crate::Error::Paused)));
+
+    // Withdrawals remain available so depositors can always exit.
+    let assets = t.vault.withdraw(&user, &shares);
+    assert_eq!(assets, 1_000);
+
+    // Resuming the vault re-enables deposits.
+    t.vault.set_paused(&false);
+    assert!(!t.vault.is_paused());
+    let again = t.vault.deposit(&user, &1_000u128);
+    assert_eq!(again, 1_000);
+}
+
+#[test]
 fn test_min_deposit_guard_rejects_small_deposits() {
     let t = VaultTest::setup();
     let user = Address::generate(&t.env);

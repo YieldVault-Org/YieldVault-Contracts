@@ -56,3 +56,11 @@ fn test_initialize_sets_admin_and_token() {
     assert_eq!(t.vault.get_admin(), t.admin);
     assert_eq!(t.vault.get_token(), t.token.address);
 }
+
+#[test]
+fn test_double_initialize_fails() {
+    let t = VaultTest::setup();
+    let other = Address::generate(&t.env);
+    let res = t.vault.try_initialize(&other, &t.token.address);
+    assert_eq!(res, Err(Ok(crate::Error::AlreadyInitialized)));
+}

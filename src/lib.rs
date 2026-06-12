@@ -107,6 +107,15 @@ impl YieldVault {
         math::convert_to_assets(shares, total_shares, total_assets)
     }
 
+    /// Returns the amount of underlying assets `user` could withdraw by
+    /// redeeming their entire share balance at the current exchange rate.
+    pub fn max_withdraw(env: Env, user: Address) -> Result<u128, Error> {
+        let shares = storage::get_balance(&env, &user);
+        let total_shares = storage::get_total_shares(&env);
+        let total_assets = storage::get_total_assets(&env);
+        math::convert_to_assets(shares, total_shares, total_assets)
+    }
+
     /// Deposits `amount` of the underlying token from `from` into the vault,
     /// minting and returning the number of shares credited to `from`.
     ///

@@ -42,4 +42,20 @@ impl YieldVault {
         events::initialize(&env, &admin, &token);
         Ok(())
     }
+
+    /// Returns the vault administrator address.
+    pub fn get_admin(env: Env) -> Result<Address, Error> {
+        if !storage::has_admin(&env) {
+            return Err(Error::NotInitialized);
+        }
+        Ok(storage::get_admin(&env))
+    }
+
+    /// Returns the underlying asset token address.
+    pub fn get_token(env: Env) -> Result<Address, Error> {
+        if !storage::has_admin(&env) {
+            return Err(Error::NotInitialized);
+        }
+        Ok(storage::get_token(&env))
+    }
 }

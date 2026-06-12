@@ -1,5 +1,6 @@
 use soroban_sdk::{Address, Env};
 
+use crate::error::Error;
 use crate::types::DataKey;
 
 /// Number of ledgers in roughly one day (assuming ~5 second ledgers).
@@ -25,6 +26,15 @@ pub fn extend_instance(env: &Env) {
 /// Returns `true` if the vault has already been initialized.
 pub fn has_admin(env: &Env) -> bool {
     env.storage().instance().has(&DataKey::Admin)
+}
+
+/// Returns [`Error::NotInitialized`] unless the vault has been initialized.
+pub fn require_initialized(env: &Env) -> Result<(), Error> {
+    if has_admin(env) {
+        Ok(())
+    } else {
+        Err(Error::NotInitialized)
+    }
 }
 
 /// Reads the admin address from instance storage.

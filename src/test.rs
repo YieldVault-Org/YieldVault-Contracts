@@ -256,3 +256,26 @@ fn test_partial_withdraw_keeps_remaining_shares() {
     assert_eq!(t.vault.total_assets(), 500);
     assert_eq!(t.token.balance(&user), 500);
 }
+
+#[test]
+fn test_deposit_before_initialize_fails() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let vault_address = env.register(YieldVault, ());
+    let vault = YieldVaultClient::new(&env, &vault_address);
+
+    let user = Address::generate(&env);
+    let res = vault.try_deposit(&user, &100u128);
+    assert_eq!(res, Err(Ok(crate::Error::NotInitialized)));
+}
+
+#[test]
+fn test_get_admin_before_initialize_fails() {
+    let env = Env::default();
+    let vault_address = env.register(YieldVault, ());
+    let vault = YieldVaultClient::new(&env, &vault_address);
+
+    let res = vault.try_get_admin();
+    assert_eq!(res, Err(Ok(crate::Error::NotInitialized)));
+}

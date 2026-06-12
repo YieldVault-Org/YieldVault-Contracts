@@ -29,8 +29,26 @@ of the underlying token.
 | `accrue_yield(amount)` | Admin-only mock yield accrual. |
 | `convert_to_shares(assets)` | Preview shares for a given asset amount. |
 | `convert_to_assets(shares)` | Preview assets for a given share amount. |
+| `price_per_share()` | Value of one share, scaled by `PRICE_SCALE`. |
+| `max_withdraw(user)` | Assets redeemable for a user's full balance. |
 | `get_apy()` | Advertised APY in basis points. |
+| `is_initialized()` | Whether the vault has been set up. |
+| `version()` | On-chain contract interface version. |
 | `get_admin()` / `get_token()` | Configuration getters. |
+
+## Architecture
+
+The contract is split into focused modules:
+
+- `lib.rs` — the `YieldVault` contract type and its entrypoints.
+- `math.rs` — pure, overflow-checked share/asset conversion helpers.
+- `storage.rs` — typed storage accessors and time-to-live management.
+- `events.rs` — event publishing helpers for indexers.
+- `error.rs` / `types.rs` — error codes, storage keys, and constants.
+
+Vault configuration and aggregate totals live in instance storage, while
+per-user share balances live in persistent storage and have their
+time-to-live extended on access.
 
 ## Building
 

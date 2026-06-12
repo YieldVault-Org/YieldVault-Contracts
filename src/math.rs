@@ -1,3 +1,9 @@
+//! Pure share/asset conversion math for the YieldVault.
+//!
+//! All functions round down toward zero, which keeps rounding error in the
+//! vault's favor and prevents depositors from extracting more value than they
+//! contributed. Multiplication is checked to avoid silent overflow.
+
 use crate::error::Error;
 
 /// Computes `a * b / denominator`, rounding the result down toward zero.

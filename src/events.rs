@@ -1,3 +1,9 @@
+//! Event publishing helpers for the YieldVault.
+//!
+//! Each helper publishes a topic identifying the event kind (and, where
+//! relevant, the affected account) together with a data payload of the amounts
+//! involved, so off-chain indexers can track vault activity.
+
 use soroban_sdk::{Address, Env, Symbol};
 
 /// Publishes a `deposit` event recording that `from` supplied `assets` of the

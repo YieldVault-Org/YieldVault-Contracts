@@ -13,3 +13,17 @@ pub fn withdraw(env: &Env, from: &Address, shares: u128, assets: u128) {
     let topics = (Symbol::new(env, "withdraw"), from.clone());
     env.events().publish(topics, (shares, assets));
 }
+
+/// Publishes an `init` event recording the configured `admin` and underlying
+/// `token` addresses.
+pub fn initialize(env: &Env, admin: &Address, token: &Address) {
+    let topics = (Symbol::new(env, "init"),);
+    env.events().publish(topics, (admin.clone(), token.clone()));
+}
+
+/// Publishes a `yield` event recording the `amount` of assets accrued to the
+/// vault as mock yield, alongside the new total assets figure.
+pub fn accrue_yield(env: &Env, amount: u128, total_assets: u128) {
+    let topics = (Symbol::new(env, "yield"),);
+    env.events().publish(topics, (amount, total_assets));
+}

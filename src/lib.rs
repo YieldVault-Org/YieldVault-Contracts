@@ -26,4 +26,20 @@ contractmeta!(key = "Description", val = "Share-based ERC4626-style yield vault"
 pub struct YieldVault;
 
 #[contractimpl]
-impl YieldVault {}
+impl YieldVault {
+    /// Initializes the vault with its `admin` and the `token` it accepts as the
+    /// underlying asset.
+    ///
+    /// Can only be called once; a second call returns
+    /// [`Error::AlreadyInitialized`].
+    pub fn initialize(env: Env, admin: Address, token: Address) -> Result<(), Error> {
+        if storage::has_admin(&env) {
+            return Err(Error::AlreadyInitialized);
+        }
+        storage::set_admin(&env, &admin);
+        storage::set_token(&env, &token);
+        storage::extend_instance(&env);
+        events::initialize(&env, &admin, &token);
+        Ok(())
+    }
+}

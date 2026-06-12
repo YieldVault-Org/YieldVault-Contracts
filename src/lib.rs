@@ -118,6 +118,17 @@ impl YieldVault {
         math::convert_to_assets(shares, total_shares, total_assets)
     }
 
+    /// Previews how many underlying assets a [`Self::withdraw`] of `shares`
+    /// would return at the current exchange rate, without modifying any state.
+    ///
+    /// This is the ERC4626-style alias for [`Self::convert_to_assets`], provided
+    /// so integrators can use the conventional preview naming.
+    pub fn preview_withdraw(env: Env, shares: u128) -> Result<u128, Error> {
+        let total_shares = storage::get_total_shares(&env);
+        let total_assets = storage::get_total_assets(&env);
+        math::convert_to_assets(shares, total_shares, total_assets)
+    }
+
     /// Returns the amount of underlying assets `user` could withdraw by
     /// redeeming their entire share balance at the current exchange rate.
     pub fn max_withdraw(env: Env, user: Address) -> Result<u128, Error> {

@@ -335,6 +335,33 @@ fn test_max_withdraw_matches_share_value() {
 }
 
 #[test]
+fn test_share_fraction_bps_helper() {
+    use crate::math::share_fraction_bps;
+    // No shares means no claim, reported as zero.
+    assert_eq!(share_fraction_bps(0, 0, 10_000), Ok(0));
+    // Holding all shares is a full 100% (10_000 bps).
+    assert_eq!(share_fraction_bps(1_000, 1_000, 10_000), Ok(10_000));
+    // Holding a quarter of the shares is 2_500 bps.
+    assert_eq!(share_fraction_bps(250, 1_000, 10_000), Ok(2_500));
+}
+
+#[test]
+fn test_share_percentage_splits_between_depositors() {
+    let t = VaultTest::setup();
+    let alice = Address::generate(&t.env);
+    let bob = Address::generate(&t.env);
+    t.mint(&alice, 3_000);
+    t.mint(&bob, 1_000);
+
+    t.vault.deposit(&alice, &3_000u128);
+    t.vault.deposit(&bob, &1_000u128);
+
+    // Alice owns three quarters of the vault, Bob the remaining quarter.
+    assert_eq!(t.vault.share_percentage(&alice), 7_500);
+    assert_eq!(t.vault.share_percentage(&bob), 2_500);
+}
+
+#[test]
 fn test_preview_getters_match_conversions() {
     let t = VaultTest::setup();
     let user = Address::generate(&t.env);

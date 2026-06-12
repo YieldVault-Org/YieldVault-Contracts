@@ -52,3 +52,16 @@ pub fn get_token(env: &Env) -> Address {
 pub fn set_token(env: &Env, token: &Address) {
     env.storage().instance().set(&DataKey::Token, token);
 }
+
+/// Reads the total number of shares minted, defaulting to zero.
+pub fn get_total_shares(env: &Env) -> u128 {
+    env.storage()
+        .instance()
+        .get(&DataKey::TotalShares)
+        .unwrap_or(0)
+}
+
+/// Writes the total number of shares minted.
+pub fn set_total_shares(env: &Env, shares: u128) {
+    env.storage().instance().set(&DataKey::TotalShares, &shares);
+}

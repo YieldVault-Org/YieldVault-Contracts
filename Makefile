@@ -22,10 +22,13 @@ lint:
 clean:
 	cargo clean
 
+optimize: build
+	stellar contract optimize --wasm $(WASM)
+
 deploy: build
 	stellar contract deploy \
 		--wasm $(WASM) \
 		--source $(SOURCE) \
 		--network $(NETWORK)
 
-.PHONY: default build test fmt fmt-check lint clean deploy
+.PHONY: default build test fmt fmt-check lint clean optimize deploy

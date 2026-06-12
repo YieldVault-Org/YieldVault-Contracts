@@ -74,3 +74,20 @@ fn test_initial_state_is_empty() {
     assert_eq!(t.vault.balance_of(&user), 0);
     assert_eq!(t.vault.get_apy(), 500);
 }
+
+#[test]
+fn test_first_deposit_mints_one_to_one() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 1_000);
+
+    let shares = t.vault.deposit(&user, &1_000u128);
+
+    // The first deposit bootstraps the exchange rate one-to-one.
+    assert_eq!(shares, 1_000);
+    assert_eq!(t.vault.balance_of(&user), 1_000);
+    assert_eq!(t.vault.total_shares(), 1_000);
+    assert_eq!(t.vault.total_assets(), 1_000);
+    assert_eq!(t.token.balance(&user), 0);
+    assert_eq!(t.token.balance(&t.vault.address), 1_000);
+}

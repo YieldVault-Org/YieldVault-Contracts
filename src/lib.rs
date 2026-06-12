@@ -89,6 +89,16 @@ impl YieldVault {
         math::convert_to_shares(assets, total_shares, total_assets)
     }
 
+    /// Returns the value of a single share in underlying assets, scaled by
+    /// [`types::PRICE_SCALE`] to preserve fractional precision.
+    ///
+    /// An empty vault reports a price of exactly one whole asset per share.
+    pub fn price_per_share(env: Env) -> Result<u128, Error> {
+        let total_shares = storage::get_total_shares(&env);
+        let total_assets = storage::get_total_assets(&env);
+        math::price_per_share(total_shares, total_assets, types::PRICE_SCALE)
+    }
+
     /// Previews how many underlying assets `shares` would redeem for at the
     /// current exchange rate.
     pub fn convert_to_assets(env: Env, shares: u128) -> Result<u128, Error> {

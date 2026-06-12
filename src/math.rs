@@ -37,6 +37,23 @@ pub fn convert_to_shares(
     mul_div(assets, total_shares, total_assets)
 }
 
+/// Computes the value of a single share in underlying assets, scaled by
+/// `scale` to preserve precision (since integer division would otherwise
+/// truncate fractional share prices).
+///
+/// Returns `scale` when the vault is empty, reflecting the one-to-one
+/// bootstrap exchange rate, and rounds down otherwise.
+pub fn price_per_share(
+    total_shares: u128,
+    total_assets: u128,
+    scale: u128,
+) -> Result<u128, Error> {
+    if total_shares == 0 {
+        return Ok(scale);
+    }
+    mul_div(total_assets, scale, total_shares)
+}
+
 /// Converts an amount of vault `shares` into the underlying assets they are
 /// redeemable for: `shares * total_assets / total_shares`, rounding down.
 ///

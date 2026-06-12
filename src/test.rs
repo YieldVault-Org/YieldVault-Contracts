@@ -109,3 +109,24 @@ fn test_deposit_then_full_withdraw_round_trip() {
     assert_eq!(t.token.balance(&user), 1_000);
     assert_eq!(t.token.balance(&t.vault.address), 0);
 }
+
+#[test]
+fn test_yield_increases_share_value() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 1_000);
+
+    let shares = t.vault.deposit(&user, &1_000u128);
+
+    // Admin accrues 1_000 of mock yield, doubling assets without new shares.
+    // Fund the vault so the eventual withdrawal can actually transfer out.
+    t.mint(&t.vault.address, 1_000);
+    t.vault.accrue_yield(&1_000u128);
+
+    assert_eq!(t.vault.total_assets(), 2_000);
+    assert_eq!(t.vault.total_shares(), 1_000);
+
+    // The same shares now redeem for twice the assets.
+    let preview = t.vault.convert_to_assets(&shares);
+    assert_eq!(preview, 2_000);
+}

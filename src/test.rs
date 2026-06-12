@@ -130,3 +130,46 @@ fn test_yield_increases_share_value() {
     let preview = t.vault.convert_to_assets(&shares);
     assert_eq!(preview, 2_000);
 }
+
+#[test]
+fn test_deposit_yield_withdraw_round_trip() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 1_000);
+
+    let shares = t.vault.deposit(&user, &1_000u128);
+
+    t.mint(&t.vault.address, 500);
+    t.vault.accrue_yield(&500u128);
+
+    let assets = t.vault.withdraw(&user, &shares);
+
+    // User deposited 1_000, vault earned 500 yield, so withdrawal returns 1_500.
+    assert_eq!(assets, 1_500);
+    assert_eq!(t.token.balance(&user), 1_500);
+    assert_eq!(t.vault.total_assets(), 0);
+    assert_eq!(t.vault.total_shares(), 0);
+}
+
+#[test]
+fn test_second_depositor_gets_fewer_shares_after_yield() {
+    let t = VaultTest::setup();
+    let alice = Address::generate(&t.env);
+    let bob = Address::generate(&t.env);
+    t.mint(&alice, 1_000);
+    t.mint(&bob, 1_000);
+
+    let alice_shares = t.vault.deposit(&alice, &1_000u128);
+    assert_eq!(alice_shares, 1_000);
+
+    // Yield doubles the share price before Bob deposits.
+    t.mint(&t.vault.address, 1_000);
+    t.vault.accrue_yield(&1_000u128);
+
+    // Bob deposits the same assets but, since each share is now worth more,
+    // receives half as many shares as Alice did.
+    let bob_shares = t.vault.deposit(&bob, &1_000u128);
+    assert_eq!(bob_shares, 500);
+    assert_eq!(t.vault.total_shares(), 1_500);
+    assert_eq!(t.vault.total_assets(), 3_000);
+}

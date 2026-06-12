@@ -38,6 +38,8 @@ pub enum DataKey {
     TotalAssets,
     /// The minimum accepted deposit amount (instance storage).
     MinDeposit,
+    /// Whether the vault is paused for new deposits (instance storage).
+    Paused,
     /// A user's share balance, keyed by their address (persistent storage).
     Balance(Address),
 }

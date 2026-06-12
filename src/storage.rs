@@ -110,6 +110,19 @@ pub fn set_min_deposit(env: &Env, amount: u128) {
     env.storage().instance().set(&DataKey::MinDeposit, &amount);
 }
 
+/// Reads whether the vault is paused, defaulting to `false` (active).
+pub fn is_paused(env: &Env) -> bool {
+    env.storage()
+        .instance()
+        .get(&DataKey::Paused)
+        .unwrap_or(false)
+}
+
+/// Writes the vault's paused flag.
+pub fn set_paused(env: &Env, paused: bool) {
+    env.storage().instance().set(&DataKey::Paused, &paused);
+}
+
 /// Reads a user's share balance from persistent storage, defaulting to zero.
 pub fn get_balance(env: &Env, user: &Address) -> u128 {
     let key = DataKey::Balance(user.clone());

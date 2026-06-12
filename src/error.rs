@@ -27,4 +27,6 @@ pub enum Error {
     InsufficientShares = 7,
     /// The deposit amount is below the vault's configured minimum.
     BelowMinimumDeposit = 8,
+    /// The vault is paused and is not accepting new deposits.
+    Paused = 9,
 }

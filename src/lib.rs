@@ -16,3 +16,14 @@ mod storage;
 mod types;
 
 pub use error::Error;
+
+use soroban_sdk::{contract, contractimpl, contractmeta, Address, Env};
+
+contractmeta!(key = "Description", val = "Share-based ERC4626-style yield vault");
+
+/// The YieldVault contract type.
+#[contract]
+pub struct YieldVault;
+
+#[contractimpl]
+impl YieldVault {}

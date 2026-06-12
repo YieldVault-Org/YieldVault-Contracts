@@ -300,6 +300,41 @@ fn test_deposit_before_initialize_fails() {
 }
 
 #[test]
+fn test_is_initialized_reflects_setup_state() {
+    let env = Env::default();
+    let vault_address = env.register(YieldVault, ());
+    let vault = YieldVaultClient::new(&env, &vault_address);
+
+    // Not yet initialized.
+    assert!(!vault.is_initialized());
+
+    let admin = Address::generate(&env);
+    let token = Address::generate(&env);
+    vault.initialize(&admin, &token);
+
+    // Now reports initialized and exposes the contract version.
+    assert!(vault.is_initialized());
+    assert_eq!(vault.version(), 1);
+}
+
+#[test]
+fn test_max_withdraw_matches_share_value() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 1_000);
+    t.vault.deposit(&user, &1_000u128);
+
+    // With no yield the full balance redeems for the deposited assets.
+    assert_eq!(t.vault.max_withdraw(&user), 1_000);
+
+    t.mint(&t.vault.address, 500);
+    t.vault.accrue_yield(&500u128);
+
+    // After yield the redeemable amount grows with the share price.
+    assert_eq!(t.vault.max_withdraw(&user), 1_500);
+}
+
+#[test]
 fn test_get_admin_before_initialize_fails() {
     let env = Env::default();
     let vault_address = env.register(YieldVault, ());

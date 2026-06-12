@@ -335,6 +335,41 @@ fn test_max_withdraw_matches_share_value() {
 }
 
 #[test]
+fn test_preview_getters_match_conversions() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 1_000);
+    t.vault.deposit(&user, &1_000u128);
+
+    // The preview aliases must agree with the underlying convert helpers.
+    assert_eq!(
+        t.vault.preview_deposit(&500u128),
+        t.vault.convert_to_shares(&500u128)
+    );
+    assert_eq!(
+        t.vault.preview_withdraw(&500u128),
+        t.vault.convert_to_assets(&500u128)
+    );
+}
+
+#[test]
+fn test_max_redeem_returns_share_balance() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 1_000);
+    let shares = t.vault.deposit(&user, &1_000u128);
+
+    // max_redeem reports the caller's full share balance.
+    assert_eq!(t.vault.max_redeem(&user), shares);
+
+    // Yield grows the asset value but leaves the redeemable share count fixed.
+    t.mint(&t.vault.address, 500);
+    t.vault.accrue_yield(&500u128);
+    assert_eq!(t.vault.max_redeem(&user), shares);
+    assert_eq!(t.vault.max_withdraw(&user), 1_500);
+}
+
+#[test]
 fn test_get_admin_before_initialize_fails() {
     let env = Env::default();
     let vault_address = env.register(YieldVault, ());

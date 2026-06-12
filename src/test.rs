@@ -335,6 +335,18 @@ fn test_max_withdraw_matches_share_value() {
 }
 
 #[test]
+fn test_set_admin_transfers_role() {
+    let t = VaultTest::setup();
+    let new_admin = Address::generate(&t.env);
+
+    assert_eq!(t.vault.get_admin(), t.admin);
+
+    // Transfer the admin role to a new address.
+    t.vault.set_admin(&new_admin);
+    assert_eq!(t.vault.get_admin(), new_admin);
+}
+
+#[test]
 fn test_pause_blocks_deposit_but_allows_withdraw() {
     let t = VaultTest::setup();
     let user = Address::generate(&t.env);

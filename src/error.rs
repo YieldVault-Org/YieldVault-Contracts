@@ -13,4 +13,8 @@ pub enum Error {
     MathOverflow = 3,
     /// A division by zero was attempted.
     DivisionByZero = 4,
+    /// A zero amount was supplied where a positive amount is required.
+    ZeroAmount = 5,
+    /// The operation would mint or burn zero shares.
+    ZeroShares = 6,
 }

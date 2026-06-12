@@ -1,6 +1,6 @@
 [package]
 name = "yieldvault-contract"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["YieldVault Contributors"]
 description = "A share-based (ERC4626-style) DeFi yield vault smart contract for Soroban"

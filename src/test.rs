@@ -314,7 +314,7 @@ fn test_is_initialized_reflects_setup_state() {
 
     // Now reports initialized and exposes the contract version.
     assert!(vault.is_initialized());
-    assert_eq!(vault.version(), 1);
+    assert_eq!(vault.version(), 2);
 }
 
 #[test]

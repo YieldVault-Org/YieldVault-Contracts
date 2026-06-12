@@ -192,4 +192,29 @@ impl YieldVault {
         events::withdraw(&env, &from, shares, assets);
         Ok(assets)
     }
+
+    /// Mocks yield accrual by increasing the vault's total assets by `amount`
+    /// without minting new shares, raising the value of every existing share.
+    ///
+    /// Admin-only: requires authorization from the configured admin address.
+    pub fn accrue_yield(env: Env, amount: u128) -> Result<(), Error> {
+        if !storage::has_admin(&env) {
+            return Err(Error::NotInitialized);
+        }
+        let admin = storage::get_admin(&env);
+        admin.require_auth();
+
+        if amount == 0 {
+            return Err(Error::ZeroAmount);
+        }
+
+        let total_assets = storage::get_total_assets(&env)
+            .checked_add(amount)
+            .ok_or(Error::MathOverflow)?;
+        storage::set_total_assets(&env, total_assets);
+        storage::extend_instance(&env);
+
+        events::accrue_yield(&env, amount, total_assets);
+        Ok(())
+    }
 }

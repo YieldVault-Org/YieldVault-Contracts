@@ -9,4 +9,8 @@ pub enum Error {
     AlreadyInitialized = 1,
     /// The contract has not been initialized yet.
     NotInitialized = 2,
+    /// An arithmetic operation overflowed the supported integer range.
+    MathOverflow = 3,
+    /// A division by zero was attempted.
+    DivisionByZero = 4,
 }

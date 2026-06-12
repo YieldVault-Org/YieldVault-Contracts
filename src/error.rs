@@ -17,4 +17,6 @@ pub enum Error {
     ZeroAmount = 5,
     /// The operation would mint or burn zero shares.
     ZeroShares = 6,
+    /// The caller does not hold enough shares for the requested operation.
+    InsufficientShares = 7,
 }

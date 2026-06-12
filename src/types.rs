@@ -1,5 +1,8 @@
 use soroban_sdk::{contracttype, Address};
 
+/// The vault's advertised mock APY, in basis points (500 == 5.00%).
+pub const MOCK_APY_BPS: u32 = 500;
+
 /// Keys used to address values in contract storage.
 #[contracttype]
 #[derive(Clone)]

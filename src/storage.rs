@@ -78,3 +78,28 @@ pub fn get_total_assets(env: &Env) -> u128 {
 pub fn set_total_assets(env: &Env, assets: u128) {
     env.storage().instance().set(&DataKey::TotalAssets, &assets);
 }
+
+/// Reads a user's share balance from persistent storage, defaulting to zero.
+pub fn get_balance(env: &Env, user: &Address) -> u128 {
+    let key = DataKey::Balance(user.clone());
+    let balance = env.storage().persistent().get(&key).unwrap_or(0);
+    if env.storage().persistent().has(&key) {
+        env.storage().persistent().extend_ttl(
+            &key,
+            PERSISTENT_LIFETIME_THRESHOLD,
+            PERSISTENT_BUMP_AMOUNT,
+        );
+    }
+    balance
+}
+
+/// Writes a user's share balance to persistent storage.
+pub fn set_balance(env: &Env, user: &Address, balance: u128) {
+    let key = DataKey::Balance(user.clone());
+    env.storage().persistent().set(&key, &balance);
+    env.storage().persistent().extend_ttl(
+        &key,
+        PERSISTENT_LIFETIME_THRESHOLD,
+        PERSISTENT_BUMP_AMOUNT,
+    );
+}

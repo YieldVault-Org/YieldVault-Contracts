@@ -200,3 +200,30 @@ fn test_zero_withdraw_fails() {
     let res = t.vault.try_withdraw(&user, &0u128);
     assert_eq!(res, Err(Ok(crate::Error::ZeroShares)));
 }
+
+#[test]
+fn test_mul_div_rounds_down() {
+    use crate::math::mul_div;
+    // 7 * 3 / 2 == 10.5, rounded down to 10.
+    assert_eq!(mul_div(7, 3, 2), Ok(10));
+}
+
+#[test]
+fn test_mul_div_division_by_zero() {
+    use crate::math::mul_div;
+    assert_eq!(mul_div(1, 1, 0), Err(crate::Error::DivisionByZero));
+}
+
+#[test]
+fn test_mul_div_overflow() {
+    use crate::math::mul_div;
+    assert_eq!(mul_div(u128::MAX, 2, 1), Err(crate::Error::MathOverflow));
+}
+
+#[test]
+fn test_convert_helpers_on_empty_vault() {
+    use crate::math::{convert_to_assets, convert_to_shares};
+    // First deposit bootstraps one-to-one; redeeming against no shares is zero.
+    assert_eq!(convert_to_shares(100, 0, 0), Ok(100));
+    assert_eq!(convert_to_assets(100, 0, 0), Ok(0));
+}

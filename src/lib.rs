@@ -48,17 +48,13 @@ impl YieldVault {
 
     /// Returns the vault administrator address.
     pub fn get_admin(env: Env) -> Result<Address, Error> {
-        if !storage::has_admin(&env) {
-            return Err(Error::NotInitialized);
-        }
+        storage::require_initialized(&env)?;
         Ok(storage::get_admin(&env))
     }
 
     /// Returns the underlying asset token address.
     pub fn get_token(env: Env) -> Result<Address, Error> {
-        if !storage::has_admin(&env) {
-            return Err(Error::NotInitialized);
-        }
+        storage::require_initialized(&env)?;
         Ok(storage::get_token(&env))
     }
 
@@ -99,9 +95,7 @@ impl YieldVault {
     /// Requires authorization from `from`. The underlying tokens are pulled
     /// from `from` into the vault via the token contract's `transfer`.
     pub fn deposit(env: Env, from: Address, amount: u128) -> Result<u128, Error> {
-        if !storage::has_admin(&env) {
-            return Err(Error::NotInitialized);
-        }
+        storage::require_initialized(&env)?;
         from.require_auth();
 
         if amount == 0 {
@@ -148,9 +142,7 @@ impl YieldVault {
     /// Requires authorization from `from`. Returns [`Error::InsufficientShares`]
     /// if `from` does not hold enough shares.
     pub fn withdraw(env: Env, from: Address, shares: u128) -> Result<u128, Error> {
-        if !storage::has_admin(&env) {
-            return Err(Error::NotInitialized);
-        }
+        storage::require_initialized(&env)?;
         from.require_auth();
 
         if shares == 0 {
@@ -201,9 +193,7 @@ impl YieldVault {
     ///
     /// Admin-only: requires authorization from the configured admin address.
     pub fn accrue_yield(env: Env, amount: u128) -> Result<(), Error> {
-        if !storage::has_admin(&env) {
-            return Err(Error::NotInitialized);
-        }
+        storage::require_initialized(&env)?;
         let admin = storage::get_admin(&env);
         admin.require_auth();
 

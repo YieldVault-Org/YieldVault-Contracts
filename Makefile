@@ -19,6 +19,12 @@ fmt-check:
 lint:
 	cargo clippy --all-targets -- -D warnings
 
+doc:
+	cargo doc --no-deps
+
+check:
+	cargo check --all-targets
+
 clean:
 	cargo clean
 
@@ -31,4 +37,4 @@ deploy: build
 		--source $(SOURCE) \
 		--network $(NETWORK)
 
-.PHONY: default build test fmt fmt-check lint clean optimize deploy
+.PHONY: default build test fmt fmt-check lint doc check clean optimize deploy

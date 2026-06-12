@@ -221,6 +221,35 @@ fn test_mul_div_overflow() {
 }
 
 #[test]
+fn test_price_per_share_helper() {
+    use crate::math::price_per_share;
+    // Empty vault reports the bootstrap price of exactly one scaled unit.
+    assert_eq!(price_per_share(0, 0, 1_000), Ok(1_000));
+    // With assets equal to shares the price is one scaled unit per share.
+    assert_eq!(price_per_share(1_000, 1_000, 1_000), Ok(1_000));
+    // Doubling assets without new shares doubles the per-share price.
+    assert_eq!(price_per_share(1_000, 2_000, 1_000), Ok(2_000));
+}
+
+#[test]
+fn test_price_per_share_view_tracks_yield() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 1_000);
+
+    // Empty vault prices a share at exactly one whole scaled asset.
+    assert_eq!(t.vault.price_per_share(), 1_000_000_000);
+
+    t.vault.deposit(&user, &1_000u128);
+    assert_eq!(t.vault.price_per_share(), 1_000_000_000);
+
+    // Accrued yield doubles assets, so each share is worth twice as much.
+    t.mint(&t.vault.address, 1_000);
+    t.vault.accrue_yield(&1_000u128);
+    assert_eq!(t.vault.price_per_share(), 2_000_000_000);
+}
+
+#[test]
 fn test_convert_helpers_on_empty_vault() {
     use crate::math::{convert_to_assets, convert_to_shares};
     // First deposit bootstraps one-to-one; redeeming against no shares is zero.

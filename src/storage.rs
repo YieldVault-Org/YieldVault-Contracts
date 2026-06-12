@@ -39,3 +39,16 @@ pub fn get_admin(env: &Env) -> Address {
 pub fn set_admin(env: &Env, admin: &Address) {
     env.storage().instance().set(&DataKey::Admin, admin);
 }
+
+/// Reads the underlying token address from instance storage.
+pub fn get_token(env: &Env) -> Address {
+    env.storage()
+        .instance()
+        .get(&DataKey::Token)
+        .expect("token not set")
+}
+
+/// Writes the underlying token address to instance storage.
+pub fn set_token(env: &Env, token: &Address) {
+    env.storage().instance().set(&DataKey::Token, token);
+}

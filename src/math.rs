@@ -30,3 +30,19 @@ pub fn convert_to_shares(
     }
     mul_div(assets, total_shares, total_assets)
 }
+
+/// Converts an amount of vault `shares` into the underlying assets they are
+/// redeemable for: `shares * total_assets / total_shares`, rounding down.
+///
+/// When no shares exist the result is zero, since there is no claim on the
+/// vault's assets.
+pub fn convert_to_assets(
+    shares: u128,
+    total_shares: u128,
+    total_assets: u128,
+) -> Result<u128, Error> {
+    if total_shares == 0 {
+        return Ok(0);
+    }
+    mul_div(shares, total_assets, total_shares)
+}

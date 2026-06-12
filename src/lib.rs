@@ -138,6 +138,24 @@ impl YieldVault {
         math::convert_to_assets(shares, total_shares, total_assets)
     }
 
+    /// Returns the smallest deposit the vault currently accepts.
+    pub fn get_min_deposit(env: Env) -> u128 {
+        storage::get_min_deposit(&env)
+    }
+
+    /// Updates the minimum accepted deposit amount.
+    ///
+    /// Admin-only: requires authorization from the configured admin address.
+    pub fn set_min_deposit(env: Env, amount: u128) -> Result<(), Error> {
+        storage::require_initialized(&env)?;
+        let admin = storage::get_admin(&env);
+        admin.require_auth();
+
+        storage::set_min_deposit(&env, amount);
+        storage::extend_instance(&env);
+        Ok(())
+    }
+
     /// Returns the fraction of the vault owned by `user`, expressed in basis
     /// points (`10_000` bps == 100%).
     ///
@@ -169,6 +187,9 @@ impl YieldVault {
 
         if amount == 0 {
             return Err(Error::ZeroAmount);
+        }
+        if amount < storage::get_min_deposit(&env) {
+            return Err(Error::BelowMinimumDeposit);
         }
 
         let total_shares = storage::get_total_shares(&env);

@@ -65,3 +65,16 @@ pub fn get_total_shares(env: &Env) -> u128 {
 pub fn set_total_shares(env: &Env, shares: u128) {
     env.storage().instance().set(&DataKey::TotalShares, &shares);
 }
+
+/// Reads the total amount of underlying assets held, defaulting to zero.
+pub fn get_total_assets(env: &Env) -> u128 {
+    env.storage()
+        .instance()
+        .get(&DataKey::TotalAssets)
+        .unwrap_or(0)
+}
+
+/// Writes the total amount of underlying assets held.
+pub fn set_total_assets(env: &Env, assets: u128) {
+    env.storage().instance().set(&DataKey::TotalAssets, &assets);
+}

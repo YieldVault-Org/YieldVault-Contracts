@@ -21,3 +21,21 @@ pub fn extend_instance(env: &Env) {
         .instance()
         .extend_ttl(INSTANCE_LIFETIME_THRESHOLD, INSTANCE_BUMP_AMOUNT);
 }
+
+/// Returns `true` if the vault has already been initialized.
+pub fn has_admin(env: &Env) -> bool {
+    env.storage().instance().has(&DataKey::Admin)
+}
+
+/// Reads the admin address from instance storage.
+pub fn get_admin(env: &Env) -> Address {
+    env.storage()
+        .instance()
+        .get(&DataKey::Admin)
+        .expect("admin not set")
+}
+
+/// Writes the admin address to instance storage.
+pub fn set_admin(env: &Env, admin: &Address) {
+    env.storage().instance().set(&DataKey::Admin, admin);
+}

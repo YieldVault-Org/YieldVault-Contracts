@@ -219,4 +219,9 @@ impl YieldVault {
     pub fn get_apy(_env: Env) -> u32 {
         types::MOCK_APY_BPS
     }
+
+    /// Returns the contract's on-chain interface version.
+    pub fn version(_env: Env) -> u32 {
+        types::VERSION
+    }
 }

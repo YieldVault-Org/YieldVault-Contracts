@@ -17,7 +17,7 @@ mod types;
 
 pub use error::Error;
 
-use soroban_sdk::{contract, contractimpl, contractmeta, Address, Env};
+use soroban_sdk::{contract, contractimpl, contractmeta, token, Address, Env};
 
 contractmeta!(key = "Description", val = "Share-based ERC4626-style yield vault");
 
@@ -88,5 +88,54 @@ impl YieldVault {
         let total_shares = storage::get_total_shares(&env);
         let total_assets = storage::get_total_assets(&env);
         math::convert_to_assets(shares, total_shares, total_assets)
+    }
+
+    /// Deposits `amount` of the underlying token from `from` into the vault,
+    /// minting and returning the number of shares credited to `from`.
+    ///
+    /// Requires authorization from `from`. The underlying tokens are pulled
+    /// from `from` into the vault via the token contract's `transfer`.
+    pub fn deposit(env: Env, from: Address, amount: u128) -> Result<u128, Error> {
+        if !storage::has_admin(&env) {
+            return Err(Error::NotInitialized);
+        }
+        from.require_auth();
+
+        if amount == 0 {
+            return Err(Error::ZeroAmount);
+        }
+
+        let total_shares = storage::get_total_shares(&env);
+        let total_assets = storage::get_total_assets(&env);
+        let shares = math::convert_to_shares(amount, total_shares, total_assets)?;
+        if shares == 0 {
+            return Err(Error::ZeroShares);
+        }
+
+        let token_address = storage::get_token(&env);
+        let client = token::Client::new(&env, &token_address);
+        client.transfer(
+            &from,
+            &env.current_contract_address(),
+            &(amount as i128),
+        );
+
+        let new_total_shares = total_shares
+            .checked_add(shares)
+            .ok_or(Error::MathOverflow)?;
+        let new_total_assets = total_assets
+            .checked_add(amount)
+            .ok_or(Error::MathOverflow)?;
+        let user_balance = storage::get_balance(&env, &from)
+            .checked_add(shares)
+            .ok_or(Error::MathOverflow)?;
+
+        storage::set_total_shares(&env, new_total_shares);
+        storage::set_total_assets(&env, new_total_assets);
+        storage::set_balance(&env, &from, user_balance);
+        storage::extend_instance(&env);
+
+        events::deposit(&env, &from, amount, shares);
+        Ok(shares)
     }
 }

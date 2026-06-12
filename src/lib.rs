@@ -15,6 +15,9 @@ mod math;
 mod storage;
 mod types;
 
+#[cfg(test)]
+mod test;
+
 pub use error::Error;
 
 use soroban_sdk::{contract, contractimpl, contractmeta, token, Address, Env};

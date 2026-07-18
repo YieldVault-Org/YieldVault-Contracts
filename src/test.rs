@@ -464,3 +464,71 @@ fn test_get_admin_before_initialize_fails() {
     let res = vault.try_get_admin();
     assert_eq!(res, Err(Ok(crate::Error::NotInitialized)));
 }
+
+// --- #53: arithmetic-boundary coverage for the share/asset math -----------
+
+#[test]
+fn test_convert_to_shares_rounds_down_non_empty() {
+    use crate::math::convert_to_shares;
+    // 3 assets into a 2:1 vault (2 shares : 1 asset) mints 6 shares exactly...
+    assert_eq!(convert_to_shares(3, 2, 1), Ok(6));
+    // ...but a fractional case must round DOWN, never up: 1 asset into a
+    // 2:1 vault cannot mint a whole share, so it rounds to 0.
+    assert_eq!(convert_to_shares(1, 2, 1), Ok(0));
+    // 5 assets into a 3:2 vault (3 shares : 2 assets) -> floor(5*3/2)=7.
+    assert_eq!(convert_to_shares(5, 3, 2), Ok(7));
+}
+
+#[test]
+fn test_convert_to_assets_rounds_down_non_empty() {
+    use crate::math::convert_to_assets;
+    // 3 shares redeeming from a 1:2 vault (1 asset : 2 shares) -> floor(3*1/2)=1.
+    assert_eq!(convert_to_assets(3, 2, 1), Ok(1));
+    // A fractional redemption that rounds to zero must not exceed the claim.
+    assert_eq!(convert_to_assets(1, 2, 1), Ok(0));
+    // 7 shares from a 2:3 vault (2 assets : 3 shares) -> floor(7*2/3)=4.
+    assert_eq!(convert_to_assets(7, 3, 2), Ok(4));
+}
+
+#[test]
+fn test_price_per_share_rounds_down() {
+    use crate::math::price_per_share;
+    // 2 assets across 3 shares with scale 1_000 -> floor(2*1000/3)=666, never 667.
+    assert_eq!(price_per_share(3, 2, 1_000), Ok(666));
+    // Tie case returns exactly (no rounding needed).
+    assert_eq!(price_per_share(2, 2, 1_000), Ok(1_000));
+}
+
+#[test]
+fn test_mul_div_max_input_floors_without_overflow() {
+    use crate::math::mul_div;
+    // denominator > numerator still computes a floored fraction, no overflow.
+    assert_eq!(mul_div(u128::MAX, 1, u128::MAX), Ok(1));
+    // Large product that does not overflow u128, then floored by denominator.
+    assert_eq!(mul_div(u128::MAX / 2, 2, 3), Ok((u128::MAX / 2 * 2) / 3));
+    // denominator == numerator collapses any numerator to 1.
+    assert_eq!(mul_div(1_234_567, 1, 1), Ok(1_234_567));
+}
+
+#[test]
+fn test_share_fraction_bps_rounds_down() {
+    use crate::math::share_fraction_bps;
+    // 1 share out of 3, scaled to 10_000 bps -> floor(1*10000/3)=3333, never 3334.
+    assert_eq!(share_fraction_bps(1, 3, 10_000), Ok(3333));
+    // 2 of 3 -> floor(20000/3)=6666.
+    assert_eq!(share_fraction_bps(2, 3, 10_000), Ok(6666));
+}
+
+#[test]
+fn test_preview_deposit_rounds_down_end_to_end() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    // Seed the vault with an awkward exchange rate: 2 shares already minted for
+    // 1 asset, so the next deposit sees a 2:1 vault and must round down.
+    t.mint(&user, 1);
+    t.vault.deposit(&user, &1u128);
+    t.mint(&user, 5);
+    // 5 assets into a 2:1 vault preview-mints floor(5*2/1)=10 shares.
+    assert_eq!(t.vault.preview_deposit(&5u128), 10);
+    assert_eq!(t.vault.preview_withdraw(&3u128), 1);
+}

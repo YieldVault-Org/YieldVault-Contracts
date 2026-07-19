@@ -249,15 +249,9 @@ impl YieldVault {
             &(amount as i128),
         );
 
-        let new_total_shares = total_shares
-            .checked_add(shares)
-            .ok_or(Error::MathOverflow)?;
-        let new_total_assets = total_assets
-            .checked_add(amount)
-            .ok_or(Error::MathOverflow)?;
-        let user_balance = storage::get_balance(&env, &from)
-            .checked_add(shares)
-            .ok_or(Error::MathOverflow)?;
+        let new_total_shares = total_shares.saturating_add(shares);
+        let new_total_assets = total_assets.saturating_add(amount);
+        let user_balance = storage::get_balance(&env, &from).saturating_add(shares);
 
         storage::set_total_shares(&env, new_total_shares);
         storage::set_total_assets(&env, new_total_assets);
@@ -293,15 +287,9 @@ impl YieldVault {
             return Err(Error::ZeroAmount);
         }
 
-        let new_total_shares = total_shares
-            .checked_sub(shares)
-            .ok_or(Error::MathOverflow)?;
-        let new_total_assets = total_assets
-            .checked_sub(assets)
-            .ok_or(Error::MathOverflow)?;
-        let new_user_balance = user_balance
-            .checked_sub(shares)
-            .ok_or(Error::MathOverflow)?;
+        let new_total_shares = total_shares.saturating_sub(shares);
+        let new_total_assets = total_assets.saturating_sub(assets);
+        let new_user_balance = user_balance.saturating_sub(shares);
 
         storage::set_total_shares(&env, new_total_shares);
         storage::set_total_assets(&env, new_total_assets);
@@ -333,9 +321,7 @@ impl YieldVault {
             return Err(Error::ZeroAmount);
         }
 
-        let total_assets = storage::get_total_assets(&env)
-            .checked_add(amount)
-            .ok_or(Error::MathOverflow)?;
+        let total_assets = storage::get_total_assets(&env).saturating_add(amount);
         storage::set_total_assets(&env, total_assets);
         storage::extend_instance(&env);
 

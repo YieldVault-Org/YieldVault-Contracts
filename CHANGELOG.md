@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Aggregate totals (`total_shares`, `total_assets`, user balances) now use
+  saturating arithmetic (`saturating_add`/`saturating_sub`) instead of
+  checked arithmetic, per ADR 0026. Overflow caps at `u128::MAX` and
+  underflow floors at `0` rather than returning `Error::MathOverflow`.
+  The internal `mul_div` helper in `math.rs` continues to use checked
+  multiplication for intermediate products.
+
 ### Added
 
 - `scripts/verify_wasm_hash.sh` — a Bash script that computes the SHA-256 of

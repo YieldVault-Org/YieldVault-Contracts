@@ -2,7 +2,17 @@
 //!
 //! All functions round down toward zero, which keeps rounding error in the
 //! vault's favor and prevents depositors from extracting more value than they
-//! contributed. Multiplication is checked to avoid silent overflow.
+//! contributed. Multiplication is checked to avoid silent overflow in
+//! intermediate products.
+//!
+//! **Note on aggregates:** Aggregate totals (`total_shares`, `total_assets`,
+//! user balances) in `lib.rs` use saturating arithmetic (per
+//! [ADR 0026]), capping at `u128::MAX` / flooring at `0` rather than
+//! returning [`Error::MathOverflow`]. This module's `mul_div` helper continues
+//! to use checked multiplication for its intermediate product, where overflow
+//! represents a genuine arithmetic error.
+//!
+//! [ADR 0026]: ../../docs/adr/0026-prefer-saturating-math-for-aggregates.md
 
 use crate::error::Error;
 

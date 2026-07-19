@@ -4,7 +4,7 @@ extern crate std;
 
 use soroban_sdk::testutils::Address as _;
 use soroban_sdk::token::{StellarAssetClient, TokenClient};
-use soroban_sdk::{Address, Env};
+use soroban_sdk::{Address, BytesN, Env};
 
 use crate::{YieldVault, YieldVaultClient};
 
@@ -531,4 +531,33 @@ fn test_preview_deposit_rounds_down_end_to_end() {
     // 5 assets into a 2:1 vault preview-mints floor(5*2/1)=10 shares.
     assert_eq!(t.vault.preview_deposit(&5u128), 10);
     assert_eq!(t.vault.preview_withdraw(&3u128), 1);
+}
+
+#[test]
+fn test_upgrade() {
+    let t = VaultTest::setup();
+    let new_wasm_hash = BytesN::from_array(&t.env, &[1; 32]);
+    
+    // Admin can upgrade
+    t.vault.upgrade(&new_wasm_hash);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
+fn test_upgrade_without_auth_fails() {
+    let env = Env::default();
+    
+    let admin = Address::generate(&env);
+    let issued = env.register_stellar_asset_contract_v2(admin.clone());
+    let token_address = issued.address();
+
+    let vault_address = env.register(YieldVault, ());
+    let vault = YieldVaultClient::new(&env, &vault_address);
+    vault.initialize(&admin, &token_address);
+    
+    // We intentionally do not call `env.mock_all_auths()`
+    let new_wasm_hash = BytesN::from_array(&env, &[1; 32]);
+    
+    // This should panic because admin hasn't authorized it
+    vault.upgrade(&new_wasm_hash);
 }

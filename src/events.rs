@@ -4,7 +4,7 @@
 //! relevant, the affected account) together with a data payload of the amounts
 //! involved, so off-chain indexers can track vault activity.
 
-use soroban_sdk::{Address, Env, Symbol};
+use soroban_sdk::{Address, BytesN, Env, Symbol};
 
 /// Publishes a `deposit` event recording that `from` supplied `assets` of the
 /// underlying token in exchange for `shares` vault shares.
@@ -47,4 +47,11 @@ pub fn set_admin(env: &Env, previous: &Address, new_admin: &Address) {
     let topics = (Symbol::new(env, "set_admin"),);
     env.events()
         .publish(topics, (previous.clone(), new_admin.clone()));
+}
+
+/// Publishes an `upgrade` event recording that the contract's Wasm bytecode
+/// was upgraded to `new_wasm_hash`.
+pub fn upgrade(env: &Env, new_wasm_hash: &BytesN<32>) {
+    let topics = (Symbol::new(env, "upgrade"),);
+    env.events().publish(topics, new_wasm_hash.clone());
 }

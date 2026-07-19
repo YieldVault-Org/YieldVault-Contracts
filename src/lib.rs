@@ -20,7 +20,7 @@ mod test;
 
 pub use error::Error;
 
-use soroban_sdk::{contract, contractimpl, contractmeta, token, Address, Env};
+use soroban_sdk::{contract, contractimpl, contractmeta, token, Address, BytesN, Env};
 
 contractmeta!(key = "Description", val = "Share-based ERC4626-style yield vault");
 
@@ -355,5 +355,20 @@ impl YieldVault {
     /// Returns the contract's on-chain interface version.
     pub fn version(_env: Env) -> u32 {
         types::VERSION
+    }
+
+    /// Upgrades the contract's Wasm bytecode to the provided hash.
+    ///
+    /// Admin-only: requires authorization from the configured admin address.
+    /// Emits an `upgrade` event with the new Wasm hash.
+    pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), Error> {
+        storage::require_initialized(&env)?;
+        let admin = storage::get_admin(&env);
+        admin.require_auth();
+
+        env.deployer().update_current_contract_wasm(&new_wasm_hash);
+        storage::extend_instance(&env);
+        events::upgrade(&env, &new_wasm_hash);
+        Ok(())
     }
 }

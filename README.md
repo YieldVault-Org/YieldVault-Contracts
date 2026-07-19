@@ -81,3 +81,15 @@ make build
 ```sh
 make test
 ```
+
+## Verifying a Deployed Contract
+
+After deploying, confirm that the on-chain WASM matches your local build:
+
+```sh
+make verify-hash CONTRACT_ID=<contract-id> [NETWORK=testnet]
+```
+
+The script exits **0** if the hashes match and **1** if they differ.
+See `scripts/verify_wasm_hash.sh --help` for the full option reference and
+`docs/deployment-guide.md` for a complete deployment walkthrough.

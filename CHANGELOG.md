@@ -5,6 +5,24 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `scripts/verify_wasm_hash.sh` — a Bash script that computes the SHA-256 of
+  the local WASM artefact and compares it against the on-chain hash retrieved
+  via `stellar contract info`.  Exits 0 on match, 1 on mismatch, 2 on any
+  pre-condition failure, making it safe to use in CI pipelines.
+- `make verify-hash CONTRACT_ID=<id>` Makefile convenience target.
+- `make test-scripts` Makefile target that runs the bash test suite in
+  `tests/test_verify_wasm_hash.sh`.
+- `tests/test_verify_wasm_hash.sh` — hermetic bash test suite for the
+  verification script (uses a stub `stellar` binary; no live network needed).
+- ADR 0041 documenting the decision to add the verification script.
+- Expanded `docs/deployment-guide.md` with WASM hash verification steps.
+- Updated `docs/mainnet-checklist.md` to include hash verification as a
+  mandatory pre-launch step.
+
 ## [0.2.0]
 
 ### Added

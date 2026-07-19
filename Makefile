@@ -1,6 +1,7 @@
 NETWORK ?= testnet
 SOURCE ?= default
 WASM = target/wasm32-unknown-unknown/release/yieldvault_contract.wasm
+CONTRACT_ID ?=
 
 default: build
 
@@ -37,4 +38,17 @@ deploy: build
 		--source $(SOURCE) \
 		--network $(NETWORK)
 
-.PHONY: default build test fmt fmt-check lint doc check clean optimize deploy
+## Verify that the on-chain WASM hash for CONTRACT_ID matches the local build.
+## Usage: make verify-hash CONTRACT_ID=C... [NETWORK=mainnet] [WASM=path/to/file.wasm]
+verify-hash:
+	@if [ -z "$(CONTRACT_ID)" ]; then \
+		echo "Usage: make verify-hash CONTRACT_ID=<contract-id> [NETWORK=<network>]"; \
+		exit 2; \
+	fi
+	bash scripts/verify_wasm_hash.sh $(CONTRACT_ID) --network $(NETWORK) --wasm $(WASM)
+
+## Run the bash test suite for the helper scripts in scripts/.
+test-scripts:
+	bash tests/test_verify_wasm_hash.sh
+
+.PHONY: default build test fmt fmt-check lint doc check clean optimize deploy verify-hash test-scripts

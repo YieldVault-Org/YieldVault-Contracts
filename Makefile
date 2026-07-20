@@ -11,6 +11,9 @@ build:
 test:
 	cargo test
 
+coverage:
+	cargo tarpaulin --ignore-tests
+
 fmt:
 	cargo fmt --all
 
@@ -51,4 +54,4 @@ verify-hash:
 test-scripts:
 	bash tests/test_verify_wasm_hash.sh
 
-.PHONY: default build test fmt fmt-check lint doc check clean optimize deploy verify-hash test-scripts
+.PHONY: default build test coverage fmt fmt-check lint doc check clean optimize deploy verify-hash test-scripts

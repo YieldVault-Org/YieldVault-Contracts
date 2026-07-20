@@ -82,6 +82,12 @@ make build
 make test
 ```
 
+To run tests and generate a code coverage report (requires `cargo-tarpaulin`):
+
+```sh
+make coverage
+```
+
 ## Verifying a Deployed Contract
 
 After deploying, confirm that the on-chain WASM matches your local build:

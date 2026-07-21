@@ -2,3 +2,9 @@
 **/*.rs.bk
 Cargo.lock
 .DS_Store
+
+# Coverage reports
+tarpaulin-report.html
+cobertura.xml
+coverage.xml
+*.lcov

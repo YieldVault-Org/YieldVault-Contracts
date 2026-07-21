@@ -542,6 +542,74 @@ fn test_upgrade() {
     t.vault.upgrade(&new_wasm_hash);
 }
 
+// --- #26: saturating math fallbacks for aggregates ------------------------
+
+#[test]
+fn test_saturating_add_caps_at_max_for_total_assets() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 1_000);
+
+    // Seed a deposit so totals are non-zero.
+    t.vault.deposit(&user, &1_000u128);
+    assert_eq!(t.vault.total_assets(), 1_000);
+
+    // accrue_yield uses saturating_add on the aggregate. Adding u128::MAX
+    // would overflow, so the result saturates at u128::MAX.
+    t.vault.accrue_yield(&u128::MAX);
+    assert_eq!(t.vault.total_assets(), u128::MAX);
+}
+
+#[test]
+fn test_saturating_add_for_user_balance() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 2_000);
+
+    // Two deposits at the same exchange rate, verifying saturating_add
+    // on the user balance behaves identically to checked_add for safe values.
+    let s1 = t.vault.deposit(&user, &1_000u128);
+    let s2 = t.vault.deposit(&user, &1_000u128);
+    assert_eq!(t.vault.balance_of(&user), s1 + s2);
+    assert_eq!(t.vault.total_shares(), s1 + s2);
+    assert_eq!(t.vault.total_assets(), 2_000);
+}
+
+#[test]
+fn test_saturating_sub_floors_total_shares_on_withdraw() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 1_000);
+    let shares = t.vault.deposit(&user, &1_000u128);
+
+    // Full withdrawal uses saturating_sub on totals — they floor at zero.
+    let assets = t.vault.withdraw(&user, &shares);
+    assert_eq!(assets, 1_000);
+    assert_eq!(t.vault.total_shares(), 0);
+    assert_eq!(t.vault.total_assets(), 0);
+    assert_eq!(t.vault.balance_of(&user), 0);
+}
+
+#[test]
+fn test_multiple_accrue_yield_saturates() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 1_000);
+    t.vault.deposit(&user, &1_000u128);
+
+    // Multiple large yield accruals each saturate the aggregate at MAX.
+    t.vault.accrue_yield(&(u128::MAX - 500));
+    assert_eq!(t.vault.total_assets(), u128::MAX);
+
+    // Adding more yield stays capped at MAX.
+    t.vault.accrue_yield(&1_000u128);
+    assert_eq!(t.vault.total_assets(), u128::MAX);
+
+    // A third accrual also stays at MAX.
+    t.vault.accrue_yield(&u128::MAX);
+    assert_eq!(t.vault.total_assets(), u128::MAX);
+}
+
 #[test]
 #[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
 fn test_upgrade_without_auth_fails() {

@@ -53,11 +53,7 @@ pub fn convert_to_shares(
 ///
 /// Returns `scale` when the vault is empty, reflecting the one-to-one
 /// bootstrap exchange rate, and rounds down otherwise.
-pub fn price_per_share(
-    total_shares: u128,
-    total_assets: u128,
-    scale: u128,
-) -> Result<u128, Error> {
+pub fn price_per_share(total_shares: u128, total_assets: u128, scale: u128) -> Result<u128, Error> {
     if total_shares == 0 {
         return Ok(scale);
     }

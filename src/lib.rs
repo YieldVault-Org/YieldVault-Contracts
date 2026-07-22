@@ -22,7 +22,10 @@ pub use error::Error;
 
 use soroban_sdk::{contract, contractimpl, contractmeta, token, Address, BytesN, Env};
 
-contractmeta!(key = "Description", val = "Share-based ERC4626-style yield vault");
+contractmeta!(
+    key = "Description",
+    val = "Share-based ERC4626-style yield vault"
+);
 
 /// The YieldVault contract type.
 #[contract]
@@ -243,11 +246,7 @@ impl YieldVault {
 
         let token_address = storage::get_token(&env);
         let client = token::Client::new(&env, &token_address);
-        client.transfer(
-            &from,
-            &env.current_contract_address(),
-            &(amount as i128),
-        );
+        client.transfer(&from, &env.current_contract_address(), &(amount as i128));
 
         let new_total_shares = total_shares.saturating_add(shares);
         let new_total_assets = total_assets.saturating_add(amount);
@@ -297,11 +296,7 @@ impl YieldVault {
 
         let token_address = storage::get_token(&env);
         let client = token::Client::new(&env, &token_address);
-        client.transfer(
-            &env.current_contract_address(),
-            &from,
-            &(assets as i128),
-        );
+        client.transfer(&env.current_contract_address(), &from, &(assets as i128));
 
         storage::extend_instance(&env);
         events::withdraw(&env, &from, shares, assets);
@@ -352,7 +347,8 @@ impl YieldVault {
         let admin = storage::get_admin(&env);
         admin.require_auth();
 
-        env.deployer().update_current_contract_wasm(&new_wasm_hash);
+        env.deployer()
+            .update_current_contract_wasm(new_wasm_hash.clone());
         storage::extend_instance(&env);
         events::upgrade(&env, &new_wasm_hash);
         Ok(())

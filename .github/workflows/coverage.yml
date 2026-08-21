@@ -1,4 +1,4 @@
-name: Coverage
+name: CI Validation
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
     branches: [ "main" ]
 
 jobs:
-  coverage:
-    name: Code Coverage
+  validate:
+    name: Format, test, and build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,15 +17,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-          
-      - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin
+          components: rustfmt, clippy
 
-      - name: Run coverage
-        run: make coverage
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
+      - run: cargo fmt --all -- --check
+      - run: cargo test --locked
+      - run: cargo clippy --lib --locked -- -D warnings
+      - run: cargo build --release --target wasm32-unknown-unknown

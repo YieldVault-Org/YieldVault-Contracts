@@ -604,10 +604,12 @@ impl YieldVault {
             storage::set_period_withdrawn(env, 0);
         }
 
-        let new_withdrawn = withdrawn.saturating_add(period_assets);
-        if new_withdrawn > max_per_period {
+        // Compare the remaining budget before adding: saturation at u128::MAX
+        // must not turn an over-budget withdrawal into an accepted one.
+        if withdrawn > max_per_period || period_assets > max_per_period.saturating_sub(withdrawn) {
             return Err(Error::WithdrawPeriodLimitExceeded);
         }
+        let new_withdrawn = withdrawn.saturating_add(period_assets);
         storage::set_period_withdrawn(env, new_withdrawn);
         Ok(())
     }

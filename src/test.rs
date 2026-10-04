@@ -1087,6 +1087,67 @@ fn test_period_limit_blocks_aggregate_and_resets_on_window() {
 }
 
 #[test]
+fn test_period_limit_maximum_rejects_overflow_atomically() {
+    for batch in [false, true] {
+        let t = VaultTest::setup();
+        let user = Address::generate(&t.env);
+        t.mint(&user, 1_000);
+        t.vault.deposit(&user, &1_000u128);
+        t.env.ledger().set_timestamp(1_000);
+        t.vault.set_withdraw_limits(&0u128, &u128::MAX, &100u64);
+        t.vault.reset_withdraw_period();
+
+        // Seed only accumulated usage; execute withdrawals with real tokens
+        // and ordinary amounts to isolate the period-counter boundary.
+        t.env.as_contract(&t.vault.address, || {
+            crate::storage::set_period_withdrawn(&t.env, u128::MAX - 2);
+        });
+        let state = || {
+            (
+                t.vault.balance_of(&user),
+                t.vault.total_shares(),
+                t.vault.total_assets(),
+                t.token.balance(&user),
+                t.token.balance(&t.vault.address),
+                t.vault.get_period_withdrawn(),
+                t.vault.get_period_started_at(),
+            )
+        };
+        let before = state();
+
+        // Only two assets remain; three must fail without a partial transfer.
+        let over = if batch {
+            t.vault
+                .try_withdraw_batch(&user, &vec![&t.env, 1u128, 2u128])
+        } else {
+            t.vault.try_withdraw(&user, &3u128)
+        };
+        assert_eq!(over, Err(Ok(crate::Error::WithdrawPeriodLimitExceeded)));
+        assert_eq!(state(), before);
+
+        let assets = if batch {
+            t.vault.withdraw_batch(&user, &vec![&t.env, 1u128, 1u128])
+        } else {
+            t.vault.withdraw(&user, &2u128)
+        };
+        assert_eq!(assets, 2);
+        assert_eq!(t.vault.get_period_withdrawn(), u128::MAX);
+        assert_eq!(t.vault.balance_of(&user), 998);
+        assert_eq!(t.token.balance(&user), 2);
+
+        // At the exact cap, even one further asset must fail atomically.
+        let at_cap = state();
+        let exhausted = if batch {
+            t.vault.try_withdraw_batch(&user, &vec![&t.env, 1u128])
+        } else {
+            t.vault.try_withdraw(&user, &1u128)
+        };
+        assert_eq!(exhausted, Err(Ok(crate::Error::WithdrawPeriodLimitExceeded)));
+        assert_eq!(state(), at_cap);
+    }
+}
+
+#[test]
 fn test_batch_cannot_bypass_period_limit() {
     let t = VaultTest::setup();
     let user = Address::generate(&t.env);

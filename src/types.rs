@@ -25,6 +25,10 @@ pub const BPS_DENOMINATOR: u128 = 10_000;
 pub const DEFAULT_MIN_DEPOSIT: u128 = 1;
 
 /// Keys used to address values in contract storage.
+///
+/// Instance / persistent business keys are listed first. The `Ttl*` variants
+/// are **temporary-only** scratch keys used to dedupe and budget TTL bumps
+/// with ledger-scoped dedup and an invocation-scoped budget (see `storage`).
 #[contracttype]
 #[derive(Clone)]
 pub enum DataKey {
@@ -45,4 +49,10 @@ pub enum DataKey {
     /// The admin-approved Wasm hash that the next upgrade must present
     /// (instance storage). Cleared automatically on a successful upgrade.
     ExpectedWasmHash,
+    /// Temporary: records the ledger sequence of the last instance TTL bump.
+    TtlInstanceBumped,
+    /// Temporary: records the ledger sequence of the last `Balance(user)` TTL bump.
+    TtlBalanceBumped(Address),
+    /// Temporary: stores the ledger sequence and current invocation TTL bump count.
+    TtlBumpCount,
 }

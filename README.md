@@ -67,8 +67,13 @@ The contract is split into focused modules:
 - `error.rs` / `types.rs` — error codes, storage keys, and constants.
 
 Vault configuration and aggregate totals live in instance storage, while
-per-user share balances live in persistent storage and have their
-time-to-live extended on access.
+per-user share balances live in persistent storage. TTL extension attempts on
+access share a budget of eight host calls per invocation, across the
+instance and all touched user balances. Repeated accesses to the same key in
+that ledger are coalesced; after the budget is exhausted, existing TTLs remain
+in force. See [TTL and Rent](docs/ttl-and-rent.md) for the thresholds, dedup rules,
+and invocation reset. Earlier callers in the same ledger cannot exhaust a
+later caller's allowance; key-level dedup still lasts for that ledger.
 
 ## Building
 

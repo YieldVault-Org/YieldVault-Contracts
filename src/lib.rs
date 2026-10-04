@@ -257,7 +257,15 @@ impl YieldVault {
         storage::set_balance(&env, &from, user_balance);
         storage::extend_instance(&env);
 
-        events::deposit(&env, &from, amount, shares);
+        events::deposit(
+            &env,
+            &from,
+            &token_address,
+            amount,
+            shares,
+            new_total_assets,
+            new_total_shares,
+        );
         Ok(shares)
     }
 
@@ -299,7 +307,15 @@ impl YieldVault {
         client.transfer(&env.current_contract_address(), &from, &(assets as i128));
 
         storage::extend_instance(&env);
-        events::withdraw(&env, &from, shares, assets);
+        events::withdraw(
+            &env,
+            &from,
+            &token_address,
+            shares,
+            assets,
+            new_total_assets,
+            new_total_shares,
+        );
         Ok(assets)
     }
 
@@ -316,11 +332,22 @@ impl YieldVault {
             return Err(Error::ZeroAmount);
         }
 
-        let total_assets = storage::get_total_assets(&env).saturating_add(amount);
+        let previous_assets = storage::get_total_assets(&env);
+        let total_assets = previous_assets.saturating_add(amount);
+        let credited_assets = total_assets - previous_assets;
         storage::set_total_assets(&env, total_assets);
         storage::extend_instance(&env);
 
-        events::accrue_yield(&env, amount, total_assets);
+        let token_address = storage::get_token(&env);
+        let total_shares = storage::get_total_shares(&env);
+        events::accrue_yield(
+            &env,
+            &admin,
+            &token_address,
+            credited_assets,
+            total_assets,
+            total_shares,
+        );
         Ok(())
     }
 

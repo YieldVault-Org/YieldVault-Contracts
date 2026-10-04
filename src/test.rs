@@ -320,7 +320,7 @@ fn test_is_initialized_reflects_setup_state() {
 
     // Now reports initialized and exposes the contract version.
     assert!(vault.is_initialized());
-    assert_eq!(vault.version(), 2);
+    assert_eq!(vault.version(), 3);
 }
 
 #[test]
@@ -1011,4 +1011,218 @@ fn test_event_ordering_deposit_then_withdraw() {
         withdraw_data,
         (500u128, 500u128).into_val(&t.env)
     ));
+}
+
+// --- #69: invariant-checked share conversion previews ----------------------
+
+#[test]
+fn test_preview_deposit_rejects_zero_amount() {
+    let t = VaultTest::setup();
+    let res = t.vault.try_preview_deposit(&0u128);
+    assert_eq!(res, Err(Ok(crate::Error::ZeroAmount)));
+}
+
+#[test]
+fn test_preview_deposit_rejects_below_minimum() {
+    let t = VaultTest::setup();
+    t.vault.set_min_deposit(&100u128);
+    let res = t.vault.try_preview_deposit(&50u128);
+    assert_eq!(res, Err(Ok(crate::Error::BelowMinimumDeposit)));
+    // Matching mutation fails the same way.
+    let user = Address::generate(&t.env);
+    t.mint(&user, 50);
+    assert_eq!(
+        t.vault.try_deposit(&user, &50u128),
+        Err(Ok(crate::Error::BelowMinimumDeposit))
+    );
+}
+
+#[test]
+fn test_preview_deposit_rejects_when_paused() {
+    let t = VaultTest::setup();
+    t.vault.set_paused(&true);
+    let res = t.vault.try_preview_deposit(&100u128);
+    assert_eq!(res, Err(Ok(crate::Error::Paused)));
+    let user = Address::generate(&t.env);
+    t.mint(&user, 100);
+    assert_eq!(
+        t.vault.try_deposit(&user, &100u128),
+        Err(Ok(crate::Error::Paused))
+    );
+}
+
+#[test]
+fn test_preview_deposit_rejects_dust_shares() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    // Seed an awkward rate: 1 asset minted 1 share, then double assets via yield
+    // so 1 new asset would mint floor(1 * 1 / 2) = 0 shares.
+    t.mint(&user, 1);
+    t.vault.deposit(&user, &1u128);
+    t.mint(&t.vault.address, 1);
+    t.vault.accrue_yield(&1u128);
+    assert_eq!(t.vault.total_shares(), 1);
+    assert_eq!(t.vault.total_assets(), 2);
+
+    let preview = t.vault.try_preview_deposit(&1u128);
+    assert_eq!(preview, Err(Ok(crate::Error::ZeroShares)));
+    t.mint(&user, 1);
+    assert_eq!(
+        t.vault.try_deposit(&user, &1u128),
+        Err(Ok(crate::Error::ZeroShares))
+    );
+    // Pure convert still reports the floored zero without the dust error.
+    assert_eq!(t.vault.convert_to_shares(&1u128), 0);
+}
+
+#[test]
+fn test_preview_withdraw_rejects_zero_shares() {
+    let t = VaultTest::setup();
+    let res = t.vault.try_preview_withdraw(&0u128);
+    assert_eq!(res, Err(Ok(crate::Error::ZeroShares)));
+}
+
+#[test]
+fn test_preview_withdraw_rejects_dust_assets() {
+    let t = VaultTest::setup();
+    // Empty vault: any non-zero share redemption converts to 0 assets.
+    // preview_withdraw must fail with ZeroAmount (same conversion failure
+    // withdraw would hit after the balance check), while convert_to_assets
+    // still returns 0 without erroring.
+    let res = t.vault.try_preview_withdraw(&1u128);
+    assert_eq!(res, Err(Ok(crate::Error::ZeroAmount)));
+    assert_eq!(t.vault.convert_to_assets(&1u128), 0);
+}
+
+#[test]
+fn test_preview_deposit_matches_mutation_across_amounts() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    // Seed vault so later deposits are proportional, not bootstrap.
+    t.mint(&user, 10_000);
+    t.vault.deposit(&user, &1_000u128);
+
+    // Property-style: for a spread of amounts, preview == minted shares.
+    let amounts: [u128; 8] = [1, 2, 7, 13, 64, 100, 999, 2_500];
+    for amount in amounts {
+        let preview = t.vault.preview_deposit(&amount);
+        t.mint(&user, amount as i128);
+        let minted = t.vault.deposit(&user, &amount);
+        assert_eq!(
+            preview, minted,
+            "preview/deposit mismatch for amount={amount}"
+        );
+    }
+}
+
+#[test]
+fn test_preview_withdraw_matches_mutation_across_amounts() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 10_000);
+    let total = t.vault.deposit(&user, &10_000u128);
+    // Accrue yield so rate is not 1:1.
+    t.mint(&t.vault.address, 2_500);
+    t.vault.accrue_yield(&2_500u128);
+
+    let slices: [u128; 6] = [1, 3, 17, 100, 500, total / 4];
+    for shares in slices {
+        let preview = t.vault.preview_withdraw(&shares);
+        let assets = t.vault.withdraw(&user, &shares);
+        assert_eq!(
+            preview, assets,
+            "preview/withdraw mismatch for shares={shares}"
+        );
+    }
+}
+
+#[test]
+fn test_preview_deposit_uninitialized_fails() {
+    let env = Env::default();
+    let vault_address = env.register(YieldVault, ());
+    let vault = YieldVaultClient::new(&env, &vault_address);
+    let res = vault.try_preview_deposit(&100u128);
+    assert_eq!(res, Err(Ok(crate::Error::NotInitialized)));
+}
+
+#[test]
+fn test_convert_to_shares_still_unchecked_for_zero() {
+    // convert_* remain pure math; preview_* own the invariant checks.
+    let t = VaultTest::setup();
+    assert_eq!(t.vault.convert_to_shares(&0u128), 0);
+    assert_eq!(t.vault.convert_to_assets(&0u128), 0);
+}
+
+#[test]
+fn test_preview_token_range_deposit_rejects_unrepresentable_assets() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    let amount = i128::MAX as u128 + 1;
+    assert_eq!(t.vault.convert_to_shares(&amount), amount);
+    assert_eq!(
+        t.vault.try_preview_deposit(&amount),
+        Err(Ok(crate::Error::MathOverflow)),
+        "signed token amount unchecked in deposit preview"
+    );
+    assert_eq!(
+        t.vault.try_deposit(&user, &amount),
+        Err(Ok(crate::Error::MathOverflow))
+    );
+    assert_eq!(t.vault.total_shares(), 0);
+    assert_eq!(t.vault.total_assets(), 0);
+    assert_eq!(t.vault.balance_of(&user), 0);
+    assert_eq!(t.token.balance(&user), 0);
+    assert_eq!(t.token.balance(&t.vault.address), 0);
+}
+
+#[test]
+fn test_preview_token_range_withdraw_rejects_unrepresentable_assets() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    let assets = i128::MAX as u128 + 1;
+    t.env.as_contract(&t.vault.address, || {
+        crate::storage::set_total_shares(&t.env, 1);
+        crate::storage::set_total_assets(&t.env, assets);
+        crate::storage::set_balance(&t.env, &user, 1);
+    });
+    assert_eq!(t.vault.convert_to_assets(&1), assets);
+    assert_eq!(
+        t.vault.try_preview_withdraw(&1),
+        Err(Ok(crate::Error::MathOverflow)),
+        "signed token amount unchecked in withdrawal preview"
+    );
+    assert_eq!(
+        t.vault.try_withdraw(&user, &1),
+        Err(Ok(crate::Error::MathOverflow))
+    );
+    assert_eq!(t.vault.total_shares(), 1);
+    assert_eq!(t.vault.total_assets(), assets);
+    assert_eq!(t.vault.balance_of(&user), 1);
+    assert_eq!(t.token.balance(&user), 0);
+    assert_eq!(t.token.balance(&t.vault.address), 0);
+}
+
+#[test]
+fn test_preview_token_range_maximum_positive_amount_remains_valid() {
+    let amount = i128::MAX as u128;
+    let deposit = VaultTest::setup();
+    let user = Address::generate(&deposit.env);
+    deposit.mint(&user, i128::MAX);
+    assert_eq!(deposit.vault.preview_deposit(&amount), amount);
+    assert_eq!(deposit.vault.deposit(&user, &amount), amount);
+    assert_eq!(deposit.token.balance(&deposit.vault.address), i128::MAX);
+
+    let withdrawal = VaultTest::setup();
+    let holder = Address::generate(&withdrawal.env);
+    withdrawal.mint(&withdrawal.vault.address, i128::MAX);
+    withdrawal.env.as_contract(&withdrawal.vault.address, || {
+        crate::storage::set_total_shares(&withdrawal.env, 1);
+        crate::storage::set_total_assets(&withdrawal.env, amount);
+        crate::storage::set_balance(&withdrawal.env, &holder, 1);
+    });
+    assert_eq!(withdrawal.vault.preview_withdraw(&1), amount);
+    assert_eq!(withdrawal.vault.withdraw(&holder, &1), amount);
+    assert_eq!(withdrawal.token.balance(&holder), i128::MAX);
+    assert_eq!(withdrawal.vault.total_shares(), 0);
+    assert_eq!(withdrawal.vault.total_assets(), 0);
 }

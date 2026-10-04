@@ -16,6 +16,8 @@ mod storage;
 mod types;
 
 #[cfg(test)]
+mod exact_transfer_test;
+#[cfg(test)]
 mod test;
 
 pub use error::Error;
@@ -45,13 +47,14 @@ fn ensure_share_invariant(env: &Env, user: &Address) -> Result<(), Error> {
 }
 
 /// Pull `amount` of `token` from `from` into the vault and require an exact
-/// balance increase. Transfer failures and short/malformed deliveries become
-/// errors so the host rolls back every related vault mutation.
+/// vault credit and sender debit. Transfer failures and short/malformed
+/// deliveries become errors so the host rolls back every related vault mutation.
 fn pull_token_exact(env: &Env, token: &Address, from: &Address, amount: u128) -> Result<(), Error> {
     let amount_i = amount_to_i128(amount)?;
     let client = token::Client::new(env, token);
     let vault = env.current_contract_address();
     let before = client.balance(&vault);
+    let sender_before = client.balance(from);
     match client.try_transfer(from, &vault, &amount_i) {
         Ok(Ok(())) => {}
         _ => return Err(Error::TokenTransferFailed),
@@ -60,21 +63,25 @@ fn pull_token_exact(env: &Env, token: &Address, from: &Address, amount: u128) ->
     let received = after
         .checked_sub(before)
         .ok_or(Error::TransferAmountMismatch)?;
-    if received != amount_i {
+    let debited = sender_before
+        .checked_sub(client.balance(from))
+        .ok_or(Error::TransferAmountMismatch)?;
+    if received != amount_i || debited != amount_i {
         return Err(Error::TransferAmountMismatch);
     }
     Ok(())
 }
 
 /// Push `amount` of `token` from the vault to `to` and require an exact
-/// balance decrease. Transfer failures and short/malformed deliveries become
-/// errors so the host rolls back every related vault mutation (including prior
-/// share burns).
+/// vault debit and recipient credit. Transfer failures and short/malformed
+/// deliveries become errors so the host rolls back every related vault mutation
+/// (including prior share burns).
 fn push_token_exact(env: &Env, token: &Address, to: &Address, amount: u128) -> Result<(), Error> {
     let amount_i = amount_to_i128(amount)?;
     let client = token::Client::new(env, token);
     let vault = env.current_contract_address();
     let before = client.balance(&vault);
+    let recipient_before = client.balance(to);
     match client.try_transfer(&vault, to, &amount_i) {
         Ok(Ok(())) => {}
         _ => return Err(Error::TokenTransferFailed),
@@ -83,7 +90,11 @@ fn push_token_exact(env: &Env, token: &Address, to: &Address, amount: u128) -> R
     let sent = before
         .checked_sub(after)
         .ok_or(Error::TransferAmountMismatch)?;
-    if sent != amount_i {
+    let received = client
+        .balance(to)
+        .checked_sub(recipient_before)
+        .ok_or(Error::TransferAmountMismatch)?;
+    if sent != amount_i || received != amount_i {
         return Err(Error::TransferAmountMismatch);
     }
     Ok(())
@@ -280,10 +291,10 @@ impl YieldVault {
     /// minting and returning the number of shares credited to `from`.
     ///
     /// Requires authorization from `from`. Token movement and vault accounting
-    /// are atomic: the pull must credit the vault by exactly `amount`, then
-    /// shares/assets/balances are updated once. Transfer failures, short or
-    /// malformed token deliveries, and invariant violations return an error so
-    /// the host rolls back every related mutation.
+    /// are atomic: the pull must debit the sender and credit the vault by
+    /// exactly `amount`, then shares/assets/balances are updated once. Transfer
+    /// failures, short or malformed token deliveries, and invariant violations
+    /// return an error so the host rolls back every related mutation.
     pub fn deposit(env: Env, from: Address, amount: u128) -> Result<u128, Error> {
         storage::require_initialized(&env)?;
         from.require_auth();
@@ -309,7 +320,7 @@ impl YieldVault {
             return Err(Error::ZeroShares);
         }
 
-        // Interaction: pull tokens and require an exact balance increase.
+        // Interaction: pull tokens and require exact endpoint balance changes.
         let token_address = storage::get_token(&env);
         pull_token_exact(&env, &token_address, &from, amount)?;
 
@@ -333,10 +344,10 @@ impl YieldVault {
     ///
     /// Requires authorization from `from`. Token movement and vault accounting
     /// are atomic (checks-effects-interactions): shares and aggregates are
-    /// updated first, then the outbound transfer must debit the vault by
-    /// exactly the redeemed asset amount. Transfer failures or malformed
-    /// deliveries return an error so the host rolls back the share burn and
-    /// every related mutation.
+    /// updated first, then the outbound transfer must debit the vault and
+    /// credit the recipient by exactly the redeemed asset amount. Transfer
+    /// failures or malformed deliveries return an error so the host rolls back
+    /// the share burn and every related mutation.
     ///
     /// Returns [`Error::InsufficientShares`] if `from` does not hold enough
     /// shares.

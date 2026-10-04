@@ -1195,7 +1195,6 @@ fn test_ttl_persistent_ttl_extended_on_active_read() {
     assert!(after >= crate::storage::PERSISTENT_LIFETIME_THRESHOLD);
 }
 
-
 #[test]
 fn test_ttl_separate_invocations_cannot_exhaust_other_users() {
     use crate::types::DataKey;
@@ -1209,11 +1208,18 @@ fn test_ttl_separate_invocations_cannot_exhaust_other_users() {
         t.mint(&user, 100);
         assert_eq!(t.vault.deposit(&user, &100u128), 100);
         let (ttl, used) = t.env.as_contract(&t.vault.address, || {
-            (t.env.storage().persistent().get_ttl(&DataKey::Balance(user.clone())),
-             crate::storage::ttl_bump_count(&t.env))
+            (
+                t.env
+                    .storage()
+                    .persistent()
+                    .get_ttl(&DataKey::Balance(user.clone())),
+                crate::storage::ttl_bump_count(&t.env),
+            )
         });
-        assert!(ttl >= crate::storage::PERSISTENT_LIFETIME_THRESHOLD,
-                "renewal budget leaked across invocations: depositor {i}, ttl {ttl}, used {used}");
+        assert!(
+            ttl >= crate::storage::PERSISTENT_LIFETIME_THRESHOLD,
+            "renewal budget leaked across invocations: depositor {i}, ttl {ttl}, used {used}"
+        );
         assert!(used <= cap);
         users.push(user);
     }
@@ -1224,16 +1230,29 @@ fn test_ttl_separate_invocations_cannot_exhaust_other_users() {
     for (i, user) in users.iter().enumerate() {
         assert_eq!(t.vault.balance_of(user), 100);
         let (ttl, used) = t.env.as_contract(&t.vault.address, || {
-            (t.env.storage().persistent().get_ttl(&DataKey::Balance(user.clone())),
-             crate::storage::ttl_bump_count(&t.env))
+            (
+                t.env
+                    .storage()
+                    .persistent()
+                    .get_ttl(&DataKey::Balance(user.clone())),
+                crate::storage::ttl_bump_count(&t.env),
+            )
         });
-        assert!(ttl >= crate::storage::PERSISTENT_LIFETIME_THRESHOLD,
-                "renewal budget leaked across invocations: reader {i}, ttl {ttl}, used {used}");
+        assert!(
+            ttl >= crate::storage::PERSISTENT_LIFETIME_THRESHOLD,
+            "renewal budget leaked across invocations: reader {i}, ttl {ttl}, used {used}"
+        );
         assert!(used <= cap);
     }
     // Pure aggregate and conversion views must not reset or consume a budget.
-    let used = t.env.as_contract(&t.vault.address, || crate::storage::ttl_bump_count(&t.env));
+    let used = t
+        .env
+        .as_contract(&t.vault.address, || crate::storage::ttl_bump_count(&t.env));
     assert_eq!(t.vault.total_shares(), u128::from(cap + 4) * 100);
     assert_eq!(t.vault.preview_deposit(&100u128), 100);
-    assert_eq!(t.env.as_contract(&t.vault.address, || crate::storage::ttl_bump_count(&t.env)), used);
+    assert_eq!(
+        t.env
+            .as_contract(&t.vault.address, || crate::storage::ttl_bump_count(&t.env)),
+        used
+    );
 }

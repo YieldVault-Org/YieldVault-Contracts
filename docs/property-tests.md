@@ -7,8 +7,31 @@ transitions lives in `src/fuzz.rs` (issue #74).
 
 - Fixed seed: `fuzz::FUZZ_SEED` (`0x0059_5646_3734_2026`).
 - PRNG: Numerical Recipes LCG; same seed → same inputs in CI.
-- On failure, assertions include `seed`, label, and minimized inputs so a
-  regression fixture can be cut without re-searching.
+- Failure reports retain the seed, iteration, named original inputs and
+  observed values or error. Inline random draws are captured without changing
+  their order.
+- Generated pure-math failures also report a bounded reduced input. Reduction
+  runs only after failure, keeps the same input domain and failure predicate
+  (including the exact error variant), and never replaces the original input.
+- Reduction visits tuple coordinates in order, trying zero and then decreasing
+  values with halved subtraction steps. Its 512-predicate-call budget includes
+  the initial replay. This is a deterministic bounded reduction, not a claim
+  that the result is the smallest counterexample or a fixed point.
+- Fixed regression fixtures retain their complete fixed inputs. Stateful vault
+  failures retain raw deposit/yield inputs and available results; they do not
+  run a reducer or create additional ledger snapshots. A captured context line
+  before the first mutation also identifies native-operation panics.
+
+The existing regression-fixture function checks that reduction is deterministic,
+retains a positive divisor and the same overflow error, observes its budget, and
+reports the seed, iteration, raw tuple and reduced tuple. No fuzz iteration or
+stateful-case count is increased.
+
+To inspect that focused reporter/reducer check:
+
+```sh
+cargo test --locked fuzz::fuzz_regression_fixtures_overflow_and_bounds -- --exact
+```
 
 ## Invariants covered
 

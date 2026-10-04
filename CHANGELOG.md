@@ -11,8 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Deterministic fuzz / property suite for share↔asset conversion, BPS
   (fee/rate) bounds, overflow rejection, and deposit/withdraw conservation
-  (`src/fuzz.rs`, issue #74). Fixed seed `FUZZ_SEED`; failures report seed
-  and minimized inputs for CI-reproducible counterexamples.
+  (`src/fuzz.rs`, issue #74). Fixed seed `FUZZ_SEED`; failure reports retain
+  the seed, iteration and complete original inputs. Generated pure-math failures
+  also receive bounded deterministic reductions; stateful failures keep raw
+  inputs and observations without additional ledger snapshots.
 
 ### Changed
 

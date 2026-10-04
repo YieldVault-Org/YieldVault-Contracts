@@ -1163,3 +1163,69 @@ fn test_lifecycle_e2e_deposit_withdraw_yield_fixtures() {
         },
     );
 }
+
+#[test]
+fn test_yield_event_records_actual_saturated_credit() {
+    use soroban_sdk::{Symbol, TryFromVal, Val, Vec};
+    // Normal credit, partially saturated credit, and a successful zero-delta call.
+    for (before, requested, credited) in [
+        (10u128, 7u128, 7u128),
+        (u128::MAX - 2, 7, 2),
+        (u128::MAX, 7, 0),
+    ] {
+        let t = VaultTest::setup();
+        t.env.as_contract(&t.vault.address, || {
+            crate::storage::set_total_assets(&t.env, before);
+            crate::storage::set_total_shares(&t.env, 7);
+        });
+        let old_events = t.env.events().all().len();
+        t.vault.accrue_yield(&requested);
+        let events = t.env.events().all();
+        assert_eq!(events.len(), old_events + 1);
+        let (contract, topics, payload) = events.last().unwrap();
+        assert_eq!(contract, t.vault.address);
+        assert_eq!(topics.len(), 3);
+        assert_eq!(
+            Symbol::try_from_val(&t.env, &topics.get(0).unwrap()).unwrap(),
+            Symbol::new(&t.env, "yield")
+        );
+        assert_eq!(
+            u32::try_from_val(&t.env, &topics.get(1).unwrap()).unwrap(),
+            crate::types::EVENT_SCHEMA_VERSION
+        );
+        assert_eq!(
+            Address::try_from_val(&t.env, &topics.get(2).unwrap()).unwrap(),
+            t.admin
+        );
+        let data = Vec::<Val>::try_from_val(&t.env, &payload).unwrap();
+        assert_eq!(data.len(), 7);
+        assert_eq!(
+            Address::try_from_val(&t.env, &data.get(0).unwrap()).unwrap(),
+            t.token.address
+        );
+        assert_eq!(u128::try_from_val(&t.env, &data.get(1).unwrap()).unwrap(), credited,
+                   "yield event reports request instead of actual credit: before={before}, requested={requested}");
+        assert_eq!(
+            u128::try_from_val(&t.env, &data.get(2).unwrap()).unwrap(),
+            0
+        );
+        assert_eq!(
+            u128::try_from_val(&t.env, &data.get(3).unwrap()).unwrap(),
+            before.saturating_add(requested)
+        );
+        assert_eq!(
+            u128::try_from_val(&t.env, &data.get(4).unwrap()).unwrap(),
+            7
+        );
+        assert_eq!(
+            u32::try_from_val(&t.env, &data.get(5).unwrap()).unwrap(),
+            t.env.ledger().sequence()
+        );
+        assert_eq!(
+            Symbol::try_from_val(&t.env, &data.get(6).unwrap()).unwrap(),
+            Symbol::new(&t.env, "ok")
+        );
+        assert_eq!(t.vault.total_assets() - before, credited);
+        assert_eq!(t.vault.total_shares(), 7);
+    }
+}

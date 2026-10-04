@@ -55,3 +55,23 @@ decoder that fails on legacy two-field payloads and foreign schema versions.
 
 `init`, `paused`, `set_admin`, and `upgrade` keep their existing compact
 payloads and are not covered by `EVENT_SCHEMA_VERSION`.
+
+## Saturation and actual credited yield
+
+The schema-v1 yield amount_assets field is the actual increase in stored
+total_assets, not the requested mock-yield amount. When saturating arithmetic
+reaches u128::MAX, a partially credited request emits only the credited delta;
+a successful request at the cap emits a zero amount. The existing one-event
+behavior, successful outcome, schema layout/version, actor, asset, correlation
+and share totals are unchanged. No accounting policy or migration is added.
+
+At original source `3ed5f5a13be1320120597bc07490b4113e7eb1a8`, the new actual-contract
+regression failed: a request for7 at u128::MAX-2 emitted7 even though only2
+were credited. The corrected case additionally covers ordinary credit and
+a zero-delta call at the cap, decoding all topic/payload fields.
+
+Native `cargo test --locked --lib`: **test result: ok. 57 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.18s**
+Toolchain: `rustc 1.99.0 (b940084d7 2026-09-28)`, `cargo 1.99.0 (5f94df478 2026-08-27)`.
+Existing emission, fixture parser, compatibility and lifecycle tests are
+preserved. This uses real Soroban with synthetic records and mocked
+authorization; it is not a live-chain, indexer deployment or payment receipt.

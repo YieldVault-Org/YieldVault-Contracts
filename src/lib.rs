@@ -332,7 +332,9 @@ impl YieldVault {
             return Err(Error::ZeroAmount);
         }
 
-        let total_assets = storage::get_total_assets(&env).saturating_add(amount);
+        let previous_assets = storage::get_total_assets(&env);
+        let total_assets = previous_assets.saturating_add(amount);
+        let credited_assets = total_assets - previous_assets;
         storage::set_total_assets(&env, total_assets);
         storage::extend_instance(&env);
 
@@ -342,7 +344,7 @@ impl YieldVault {
             &env,
             &admin,
             &token_address,
-            amount,
+            credited_assets,
             total_assets,
             total_shares,
         );

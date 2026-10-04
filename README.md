@@ -122,3 +122,24 @@ make verify-hash CONTRACT_ID=<contract-id> [NETWORK=testnet]
 The script exits **0** if the hashes match and **1** if they differ.
 See `scripts/verify_wasm_hash.sh --help` for the full option reference and
 `docs/deployment-guide.md` for a complete deployment walkthrough.
+
+### Signed token amount boundary
+
+Checked deposit and withdrawal previews reject an underlying asset amount
+above `i128::MAX` with the existing `MathOverflow` error. The same checked
+conversion is used by the token transfers, preventing a positive `u128` from
+wrapping into a negative token amount. Zero/minimum/paused/dust precedence
+and pure `convert_*` arithmetic remain unchanged. The maximum positive signed
+amount remains accepted. Authorization, user balance and actual token liquidity
+remain mutation-only conditions; a preview is not a guarantee of settlement.
+
+On base `7bb2380b5c8c47b8a91f16329db737d698c41b06`, the real-contract range regression
+recorded **1 passed / 2 failed**. The correction preserves the valid maximum
+and rejects the first unrepresentable value in both previews and mutations,
+with stored balances unchanged on rejection.
+
+Native `cargo test --locked --lib`: **test result: ok. 65 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.15s**
+Toolchain: `rustc 1.99.0 (b940084d7 2026-09-28)`, `cargo 1.99.0 (5f94df478 2026-08-27)`.
+This uses the actual Soroban runtime and Stellar Asset Contract with
+synthetic records and mocked user authorization, not a live-chain deployment
+or a payment/acceptance receipt. Existing ignored cases remain unchanged.

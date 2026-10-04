@@ -1108,7 +1108,10 @@ fn test_preview_deposit_matches_mutation_across_amounts() {
         let preview = t.vault.preview_deposit(&amount);
         t.mint(&user, amount as i128);
         let minted = t.vault.deposit(&user, &amount);
-        assert_eq!(preview, minted, "preview/deposit mismatch for amount={amount}");
+        assert_eq!(
+            preview, minted,
+            "preview/deposit mismatch for amount={amount}"
+        );
     }
 }
 
@@ -1126,7 +1129,10 @@ fn test_preview_withdraw_matches_mutation_across_amounts() {
     for shares in slices {
         let preview = t.vault.preview_withdraw(&shares);
         let assets = t.vault.withdraw(&user, &shares);
-        assert_eq!(preview, assets, "preview/withdraw mismatch for shares={shares}");
+        assert_eq!(
+            preview, assets,
+            "preview/withdraw mismatch for shares={shares}"
+        );
     }
 }
 
@@ -1147,3 +1153,76 @@ fn test_convert_to_shares_still_unchecked_for_zero() {
     assert_eq!(t.vault.convert_to_assets(&0u128), 0);
 }
 
+#[test]
+fn test_preview_token_range_deposit_rejects_unrepresentable_assets() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    let amount = i128::MAX as u128 + 1;
+    assert_eq!(t.vault.convert_to_shares(&amount), amount);
+    assert_eq!(
+        t.vault.try_preview_deposit(&amount),
+        Err(Ok(crate::Error::MathOverflow)),
+        "signed token amount unchecked in deposit preview"
+    );
+    assert_eq!(
+        t.vault.try_deposit(&user, &amount),
+        Err(Ok(crate::Error::MathOverflow))
+    );
+    assert_eq!(t.vault.total_shares(), 0);
+    assert_eq!(t.vault.total_assets(), 0);
+    assert_eq!(t.vault.balance_of(&user), 0);
+    assert_eq!(t.token.balance(&user), 0);
+    assert_eq!(t.token.balance(&t.vault.address), 0);
+}
+
+#[test]
+fn test_preview_token_range_withdraw_rejects_unrepresentable_assets() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    let assets = i128::MAX as u128 + 1;
+    t.env.as_contract(&t.vault.address, || {
+        crate::storage::set_total_shares(&t.env, 1);
+        crate::storage::set_total_assets(&t.env, assets);
+        crate::storage::set_balance(&t.env, &user, 1);
+    });
+    assert_eq!(t.vault.convert_to_assets(&1), assets);
+    assert_eq!(
+        t.vault.try_preview_withdraw(&1),
+        Err(Ok(crate::Error::MathOverflow)),
+        "signed token amount unchecked in withdrawal preview"
+    );
+    assert_eq!(
+        t.vault.try_withdraw(&user, &1),
+        Err(Ok(crate::Error::MathOverflow))
+    );
+    assert_eq!(t.vault.total_shares(), 1);
+    assert_eq!(t.vault.total_assets(), assets);
+    assert_eq!(t.vault.balance_of(&user), 1);
+    assert_eq!(t.token.balance(&user), 0);
+    assert_eq!(t.token.balance(&t.vault.address), 0);
+}
+
+#[test]
+fn test_preview_token_range_maximum_positive_amount_remains_valid() {
+    let amount = i128::MAX as u128;
+    let deposit = VaultTest::setup();
+    let user = Address::generate(&deposit.env);
+    deposit.mint(&user, i128::MAX);
+    assert_eq!(deposit.vault.preview_deposit(&amount), amount);
+    assert_eq!(deposit.vault.deposit(&user, &amount), amount);
+    assert_eq!(deposit.token.balance(&deposit.vault.address), i128::MAX);
+
+    let withdrawal = VaultTest::setup();
+    let holder = Address::generate(&withdrawal.env);
+    withdrawal.mint(&withdrawal.vault.address, i128::MAX);
+    withdrawal.env.as_contract(&withdrawal.vault.address, || {
+        crate::storage::set_total_shares(&withdrawal.env, 1);
+        crate::storage::set_total_assets(&withdrawal.env, amount);
+        crate::storage::set_balance(&withdrawal.env, &holder, 1);
+    });
+    assert_eq!(withdrawal.vault.preview_withdraw(&1), amount);
+    assert_eq!(withdrawal.vault.withdraw(&holder, &1), amount);
+    assert_eq!(withdrawal.token.balance(&holder), i128::MAX);
+    assert_eq!(withdrawal.vault.total_shares(), 0);
+    assert_eq!(withdrawal.vault.total_assets(), 0);
+}

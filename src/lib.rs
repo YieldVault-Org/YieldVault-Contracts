@@ -237,7 +237,11 @@ impl YieldVault {
 
         let token_address = storage::get_token(&env);
         let client = token::Client::new(&env, &token_address);
-        client.transfer(&from, &env.current_contract_address(), &(amount as i128));
+        client.transfer(
+            &from,
+            &env.current_contract_address(),
+            &token_amount(amount)?,
+        );
 
         let new_total_shares = total_shares.saturating_add(shares);
         let new_total_assets = total_assets.saturating_add(amount);
@@ -283,7 +287,11 @@ impl YieldVault {
 
         let token_address = storage::get_token(&env);
         let client = token::Client::new(&env, &token_address);
-        client.transfer(&env.current_contract_address(), &from, &(assets as i128));
+        client.transfer(
+            &env.current_contract_address(),
+            &from,
+            &token_amount(assets)?,
+        );
 
         storage::extend_instance(&env);
         events::withdraw(&env, &from, shares, assets);
@@ -392,6 +400,7 @@ fn preview_deposit_shares(env: &Env, assets: u128) -> Result<u128, Error> {
     if assets < storage::get_min_deposit(env) {
         return Err(Error::BelowMinimumDeposit);
     }
+    token_amount(assets)?;
 
     let total_shares = storage::get_total_shares(env);
     let total_assets = storage::get_total_assets(env);
@@ -417,5 +426,11 @@ fn preview_withdraw_assets(env: &Env, shares: u128) -> Result<u128, Error> {
     if assets == 0 {
         return Err(Error::ZeroAmount);
     }
+    token_amount(assets)?;
     Ok(assets)
+}
+
+/// Token transfers use signed amounts; previews must reject the same range.
+fn token_amount(assets: u128) -> Result<i128, Error> {
+    i128::try_from(assets).map_err(|_| Error::MathOverflow)
 }

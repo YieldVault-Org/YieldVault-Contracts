@@ -37,7 +37,6 @@ of the underlying token.
 | `share_percentage(user)` | A user's share of the vault, in basis points. |
 | `get_apy()` | Advertised APY in basis points. |
 | `is_initialized()` | Whether the vault has been set up. |
-| `is_paused()` | Whether deposits are currently paused. |
 | `version()` | On-chain contract interface version. |
 | `get_min_deposit()` | The smallest accepted deposit amount. |
 | `get_admin()` / `get_token()` | Configuration getters. |
@@ -47,9 +46,10 @@ of the underlying token.
 The previews share their state and conversion helpers with the mutations:
 
 - `preview_deposit(assets)` checks initialization, pause status, nonzero assets,
-  minimum deposit, and nonzero shares after rounding down.
-- `preview_withdraw(shares)` checks initialization, nonzero shares, and nonzero
-  assets after rounding down. This branch's pause policy still permits withdrawals.
+  minimum deposit, signed token representability, and nonzero shares after rounding down.
+- `preview_withdraw(shares)` checks initialization, nonzero shares, nonzero
+  assets after rounding down, and signed token representability. This branch's
+  pause policy still permits withdrawals.
 
 A successful preview establishes only those checks at the observed vault state.
 Neither preview takes a user address, requires the user's authorization, or
@@ -59,7 +59,7 @@ share balance before running the shared conversion helper. A preview therefore
 does not guarantee that a user's mutation will succeed. Read `balance_of(user)`
 when inspecting the user's shares, and handle errors from the actual mutation.
 
-For conversion math without the preview's state, zero, minimum, and dust guards,
+For conversion math without the preview's state, zero, minimum, dust, and token-range guards,
 use `convert_to_shares` or `convert_to_assets`. These methods still use checked
 intermediate arithmetic and can return arithmetic errors. Interface version 3
 makes `preview_*` stricter than the former conversion aliases; callers needing
@@ -128,8 +128,9 @@ See `scripts/verify_wasm_hash.sh --help` for the full option reference and
 Checked deposit and withdrawal previews reject an underlying asset amount
 above `i128::MAX` with the existing `MathOverflow` error. The same checked
 conversion is used by the token transfers, preventing a positive `u128` from
-wrapping into a negative token amount. Zero/minimum/paused/dust precedence
-and pure `convert_*` arithmetic remain unchanged. The maximum positive signed
+wrapping into a negative token amount. Existing guards are retained; the added
+deposit range check follows the minimum check and precedes conversion/dust checks.
+Pure `convert_*` arithmetic remains unchanged. The maximum positive signed
 amount remains accepted. Authorization, user balance and actual token liquidity
 remain mutation-only conditions; a preview is not a guarantee of settlement.
 
@@ -143,3 +144,8 @@ Toolchain: `rustc 1.99.0 (b940084d7 2026-09-28)`, `cargo 1.99.0 (5f94df478 2026-
 This uses the actual Soroban runtime and Stellar Asset Contract with
 synthetic records and mocked user authorization, not a live-chain deployment
 or a payment/acceptance receipt. Existing ignored cases remain unchanged.
+
+[Native run 37192978942](https://github.com/woahwhattheheck/YieldVault-Contracts/actions/runs/37192978942)
+retains raw before/after logs and source receipts in artifact `11299856637`.
+Executed product source is `46ef8691a6a88f94782d1d124f20fb265c3ca6a5`;
+subsequent documentation edits do not change its Rust source or tests.

@@ -29,8 +29,8 @@ of the underlying token.
 | `accrue_yield(amount)` | Admin-only mock yield accrual. |
 | `convert_to_shares(assets)` | Preview shares for a given asset amount. |
 | `convert_to_assets(shares)` | Preview assets for a given share amount. |
-| `preview_deposit(assets)` | Invariant-checked deposit preview (same checks as `deposit`). |
-| `preview_withdraw(shares)` | Invariant-checked withdraw preview (zero/dust checks as `withdraw`). |
+| `preview_deposit(assets)` | Deposit state and conversion checks; see preview scope below. |
+| `preview_withdraw(shares)` | Withdrawal state and conversion checks, excluding per-user balance. |
 | `price_per_share()` | Value of one share, scaled by `PRICE_SCALE`. |
 | `max_withdraw(user)` | Assets redeemable for a user's full balance. |
 | `max_redeem(user)` | Shares redeemable for a user (their balance). |
@@ -41,6 +41,29 @@ of the underlying token.
 | `version()` | On-chain contract interface version. |
 | `get_min_deposit()` | The smallest accepted deposit amount. |
 | `get_admin()` / `get_token()` | Configuration getters. |
+
+## Preview scope
+
+The previews share their state and conversion helpers with the mutations:
+
+- `preview_deposit(assets)` checks initialization, pause status, nonzero assets,
+  minimum deposit, and nonzero shares after rounding down.
+- `preview_withdraw(shares)` checks initialization, nonzero shares, and nonzero
+  assets after rounding down. This branch's pause policy still permits withdrawals.
+
+A successful preview establishes only those checks at the observed vault state.
+Neither preview takes a user address, requires the user's authorization, or
+executes the underlying token transfer. The mutations require `from`
+authorization and perform that transfer; `withdraw` also checks the user's
+share balance before running the shared conversion helper. A preview therefore
+does not guarantee that a user's mutation will succeed. Read `balance_of(user)`
+when inspecting the user's shares, and handle errors from the actual mutation.
+
+For conversion math without the preview's state, zero, minimum, and dust guards,
+use `convert_to_shares` or `convert_to_assets`. These methods still use checked
+intermediate arithmetic and can return arithmetic errors. Interface version 3
+makes `preview_*` stricter than the former conversion aliases; callers needing
+only conversion math should use `convert_*` explicitly.
 
 ## Admin operations
 

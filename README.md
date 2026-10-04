@@ -58,6 +58,11 @@ While the vault is paused, `deposit`, `withdraw`, and `accrue_yield` return
 `set_admin`, `set_min_deposit`, upgrade staging) remain available so operators
 can inspect state and recover.
 
+While paused, `max_withdraw` and `max_redeem` report zero: no withdrawal is
+currently executable. `balance_of`, conversion methods, and previews still
+report the unchanged position and exchange rate. Unpausing restores the
+withdrawal maxima without changing balances.
+
 ## Architecture
 
 The contract is split into focused modules:
@@ -101,3 +106,7 @@ make verify-hash CONTRACT_ID=<contract-id> [NETWORK=testnet]
 The script exits **0** if the hashes match and **1** if they differ.
 See `scripts/verify_wasm_hash.sh --help` for the full option reference and
 `docs/deployment-guide.md` for a complete deployment walkthrough.
+
+The pause-limit follow-up was checked with `cargo test --locked test_pause -- --nocapture`
+using the existing three pause tests. This is a focused native Soroban-host result,
+not a full-suite or live-chain result. [Execution log](https://github.com/woahwhattheheck/YieldVault-Contracts/actions/runs/37201856258).

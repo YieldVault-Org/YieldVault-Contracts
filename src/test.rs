@@ -956,6 +956,9 @@ fn test_pause_does_not_block_readonly_getters() {
     t.mint(&user, 1_000);
     let shares = t.vault.deposit(&user, &1_000u128);
 
+    assert_eq!(t.vault.max_withdraw(&user), 1_000);
+    assert_eq!(t.vault.max_redeem(&user), shares);
+
     t.vault
         .set_paused(&true, &Symbol::new(&t.env, "maintenance"));
 
@@ -970,14 +973,21 @@ fn test_pause_does_not_block_readonly_getters() {
     assert_eq!(t.vault.convert_to_assets(&shares), 1_000);
     assert_eq!(t.vault.preview_deposit(&500u128), 500);
     assert_eq!(t.vault.preview_withdraw(&shares), 1_000);
-    assert_eq!(t.vault.max_withdraw(&user), 1_000);
-    assert_eq!(t.vault.max_redeem(&user), shares);
+    assert_eq!(t.vault.max_withdraw(&user), 0);
+    assert_eq!(t.vault.max_redeem(&user), 0);
     assert_eq!(t.vault.share_percentage(&user), 10_000);
     assert_eq!(t.vault.get_min_deposit(), 1);
     assert_eq!(t.vault.get_apy(), 500);
     assert_eq!(t.vault.version(), 3);
     assert!(t.vault.is_paused());
     assert_eq!(t.vault.total_assets(), 1_000);
+    assert_eq!(t.vault.balance_of(&user), shares);
+
+    // Resuming restores executable limits without rewriting the position.
+    t.vault.set_paused(&false, &Symbol::new(&t.env, "resume"));
+    assert_eq!(t.vault.max_withdraw(&user), 1_000);
+    assert_eq!(t.vault.max_redeem(&user), shares);
+    assert_eq!(t.vault.balance_of(&user), shares);
 }
 
 #[test]

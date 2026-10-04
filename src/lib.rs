@@ -151,9 +151,14 @@ impl YieldVault {
         math::convert_to_assets(shares, total_shares, total_assets)
     }
 
-    /// Returns the amount of underlying assets `user` could withdraw by
-    /// redeeming their entire share balance at the current exchange rate.
+    /// Returns the amount of underlying assets `user` can currently withdraw.
+    ///
+    /// Returns zero while paused. Use [`Self::convert_to_assets`] or
+    /// [`Self::preview_withdraw`] to inspect the position value during a pause.
     pub fn max_withdraw(env: Env, user: Address) -> Result<u128, Error> {
+        if storage::is_paused(&env) {
+            return Ok(0);
+        }
         let shares = storage::get_balance(&env, &user);
         let total_shares = storage::get_total_shares(&env);
         let total_assets = storage::get_total_assets(&env);
@@ -216,12 +221,16 @@ impl YieldVault {
         math::share_fraction_bps(shares, total_shares, types::BPS_DENOMINATOR)
     }
 
-    /// Returns the maximum number of shares `user` can redeem, which is simply
-    /// their current share balance.
+    /// Returns the maximum number of shares `user` can currently redeem.
+    ///
+    /// Returns zero while paused; [`Self::balance_of`] still reports ownership.
     ///
     /// Provided as the ERC4626-style counterpart to [`Self::max_withdraw`],
     /// which reports the same position denominated in underlying assets.
     pub fn max_redeem(env: Env, user: Address) -> u128 {
+        if storage::is_paused(&env) {
+            return 0;
+        }
         storage::get_balance(&env, &user)
     }
 

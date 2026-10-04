@@ -1194,3 +1194,46 @@ fn test_ttl_persistent_ttl_extended_on_active_read() {
     assert!(after > before.saturating_sub(advance));
     assert!(after >= crate::storage::PERSISTENT_LIFETIME_THRESHOLD);
 }
+
+
+#[test]
+fn test_ttl_separate_invocations_cannot_exhaust_other_users() {
+    use crate::types::DataKey;
+    use soroban_sdk::testutils::storage::Persistent as _;
+
+    let t = VaultTest::setup();
+    let cap = crate::storage::MAX_TTL_BUMPS_PER_INVOCATION;
+    let mut users = std::vec::Vec::new();
+    for i in 0..(cap + 4) {
+        let user = Address::generate(&t.env);
+        t.mint(&user, 100);
+        assert_eq!(t.vault.deposit(&user, &100u128), 100);
+        let (ttl, used) = t.env.as_contract(&t.vault.address, || {
+            (t.env.storage().persistent().get_ttl(&DataKey::Balance(user.clone())),
+             crate::storage::ttl_bump_count(&t.env))
+        });
+        assert!(ttl >= crate::storage::PERSISTENT_LIFETIME_THRESHOLD,
+                "renewal budget leaked across invocations: depositor {i}, ttl {ttl}, used {used}");
+        assert!(used <= cap);
+        users.push(user);
+    }
+    assert_eq!(t.vault.total_shares(), u128::from(cap + 4) * 100);
+    assert_eq!(t.vault.total_assets(), u128::from(cap + 4) * 100);
+
+    advance_ledger(&t.env, crate::storage::DAY_IN_LEDGERS + 10);
+    for (i, user) in users.iter().enumerate() {
+        assert_eq!(t.vault.balance_of(user), 100);
+        let (ttl, used) = t.env.as_contract(&t.vault.address, || {
+            (t.env.storage().persistent().get_ttl(&DataKey::Balance(user.clone())),
+             crate::storage::ttl_bump_count(&t.env))
+        });
+        assert!(ttl >= crate::storage::PERSISTENT_LIFETIME_THRESHOLD,
+                "renewal budget leaked across invocations: reader {i}, ttl {ttl}, used {used}");
+        assert!(used <= cap);
+    }
+    // Pure aggregate and conversion views must not reset or consume a budget.
+    let used = t.env.as_contract(&t.vault.address, || crate::storage::ttl_bump_count(&t.env));
+    assert_eq!(t.vault.total_shares(), u128::from(cap + 4) * 100);
+    assert_eq!(t.vault.preview_deposit(&100u128), 100);
+    assert_eq!(t.env.as_contract(&t.vault.address, || crate::storage::ttl_bump_count(&t.env)), used);
+}

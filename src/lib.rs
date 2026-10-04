@@ -39,6 +39,7 @@ impl YieldVault {
     /// Can only be called once; a second call returns
     /// [`Error::AlreadyInitialized`].
     pub fn initialize(env: Env, admin: Address, token: Address) -> Result<(), Error> {
+        storage::begin_invocation(&env);
         if storage::has_admin(&env) {
             return Err(Error::AlreadyInitialized);
         }
@@ -72,6 +73,7 @@ impl YieldVault {
     /// Admin-only: requires authorization from the current admin. Emits a
     /// `set_admin` event recording the previous and new admin addresses.
     pub fn set_admin(env: Env, new_admin: Address) -> Result<(), Error> {
+        storage::begin_invocation(&env);
         storage::require_initialized(&env)?;
         let current = storage::get_admin(&env);
         current.require_auth();
@@ -100,6 +102,7 @@ impl YieldVault {
 
     /// Returns the share balance of `user`.
     pub fn balance_of(env: Env, user: Address) -> u128 {
+        storage::begin_invocation(&env);
         storage::get_balance(&env, &user)
     }
 
@@ -154,6 +157,7 @@ impl YieldVault {
     /// Returns the amount of underlying assets `user` could withdraw by
     /// redeeming their entire share balance at the current exchange rate.
     pub fn max_withdraw(env: Env, user: Address) -> Result<u128, Error> {
+        storage::begin_invocation(&env);
         let shares = storage::get_balance(&env, &user);
         let total_shares = storage::get_total_shares(&env);
         let total_assets = storage::get_total_assets(&env);
@@ -175,6 +179,7 @@ impl YieldVault {
     /// Withdrawals remain available while paused so depositors can always exit.
     /// Admin-only: requires authorization from the configured admin address.
     pub fn set_paused(env: Env, paused: bool) -> Result<(), Error> {
+        storage::begin_invocation(&env);
         storage::require_initialized(&env)?;
         let admin = storage::get_admin(&env);
         admin.require_auth();
@@ -189,6 +194,7 @@ impl YieldVault {
     ///
     /// Admin-only: requires authorization from the configured admin address.
     pub fn set_min_deposit(env: Env, amount: u128) -> Result<(), Error> {
+        storage::begin_invocation(&env);
         storage::require_initialized(&env)?;
         let admin = storage::get_admin(&env);
         admin.require_auth();
@@ -204,6 +210,7 @@ impl YieldVault {
     /// Reports zero for an empty vault and rounds down, so the figure never
     /// overstates a user's claim on the vault's assets.
     pub fn share_percentage(env: Env, user: Address) -> Result<u128, Error> {
+        storage::begin_invocation(&env);
         let shares = storage::get_balance(&env, &user);
         let total_shares = storage::get_total_shares(&env);
         math::share_fraction_bps(shares, total_shares, types::BPS_DENOMINATOR)
@@ -215,6 +222,7 @@ impl YieldVault {
     /// Provided as the ERC4626-style counterpart to [`Self::max_withdraw`],
     /// which reports the same position denominated in underlying assets.
     pub fn max_redeem(env: Env, user: Address) -> u128 {
+        storage::begin_invocation(&env);
         storage::get_balance(&env, &user)
     }
 
@@ -224,6 +232,7 @@ impl YieldVault {
     /// Requires authorization from `from`. The underlying tokens are pulled
     /// from `from` into the vault via the token contract's `transfer`.
     pub fn deposit(env: Env, from: Address, amount: u128) -> Result<u128, Error> {
+        storage::begin_invocation(&env);
         storage::require_initialized(&env)?;
         from.require_auth();
 
@@ -267,6 +276,7 @@ impl YieldVault {
     /// Requires authorization from `from`. Returns [`Error::InsufficientShares`]
     /// if `from` does not hold enough shares.
     pub fn withdraw(env: Env, from: Address, shares: u128) -> Result<u128, Error> {
+        storage::begin_invocation(&env);
         storage::require_initialized(&env)?;
         from.require_auth();
 
@@ -308,6 +318,7 @@ impl YieldVault {
     ///
     /// Admin-only: requires authorization from the configured admin address.
     pub fn accrue_yield(env: Env, amount: u128) -> Result<(), Error> {
+        storage::begin_invocation(&env);
         storage::require_initialized(&env)?;
         let admin = storage::get_admin(&env);
         admin.require_auth();
@@ -346,6 +357,7 @@ impl YieldVault {
     /// giving the admin a safe way to correct a staging mistake before applying
     /// the upgrade.
     pub fn set_expected_wasm_hash(env: Env, expected_hash: BytesN<32>) -> Result<(), Error> {
+        storage::begin_invocation(&env);
         storage::require_initialized(&env)?;
         let admin = storage::get_admin(&env);
         admin.require_auth();
@@ -368,6 +380,7 @@ impl YieldVault {
     /// On success the staged hash is cleared and an auditable `upgrade` event
     /// is emitted that records both the upgrading admin and the new hash.
     pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), Error> {
+        storage::begin_invocation(&env);
         storage::require_initialized(&env)?;
         let admin = storage::get_admin(&env);
         admin.require_auth();

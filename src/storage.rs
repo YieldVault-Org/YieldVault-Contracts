@@ -8,7 +8,7 @@
 //! | `Balance(user)` | hot user ledger | **persistent** | Bumped **at most once per user key per ledger** on read (if present) or write. |
 //!
 //! There are currently no cold / temporary business-data entries. Temporary
-//! storage holds only per-ledger TTL bump dedup flags and the bump budget
+//! storage holds only per-ledger TTL bump dedup flags and the invocation bump
 //! counter (see below).
 //!
 //! ## Budgets
@@ -17,15 +17,17 @@
 //!   [`INSTANCE_LIFETIME_THRESHOLD`] (~29 days).
 //! - Persistent bump target: [`PERSISTENT_BUMP_AMOUNT`] ledgers (~30 days),
 //!   threshold [`PERSISTENT_LIFETIME_THRESHOLD`] (~29 days).
-//! - Per-ledger cap: [`MAX_TTL_BUMPS_PER_INVOCATION`]. Once the cap is reached,
+//! - Per-invocation cap: [`MAX_TTL_BUMPS_PER_INVOCATION`]. Once the cap is reached,
 //!   further bump attempts become no-ops so rent work stays bounded. Existing
 //!   TTLs remain in force.
 //!
-//! Dedup and budget scratch keys are scoped by **ledger sequence**, so a bump
+//! Dedup flags are scoped by **ledger sequence**, so a bump
 //! in ledger *N* never suppresses a legitimate bump in ledger *N+1*. Within a
 //! single ledger, repeated reads (or a read followed by a write of the same
 //! key) share one `extend_ttl` — further bumps in that ledger are redundant
-//! because TTL is measured in ledgers.
+//! because TTL is measured in ledgers. Each TTL-touching public entrypoint starts
+//! a fresh budget through [`begin_invocation`], so unrelated callers cannot
+//! consume each other's allowance.
 //!
 //! ## Expiration behaviour
 //!
@@ -57,17 +59,28 @@ pub const PERSISTENT_BUMP_AMOUNT: u32 = 30 * DAY_IN_LEDGERS;
 /// Threshold at which persistent storage entries are extended (~29 days).
 pub const PERSISTENT_LIFETIME_THRESHOLD: u32 = PERSISTENT_BUMP_AMOUNT - DAY_IN_LEDGERS;
 
-/// Hard cap on `extend_ttl` calls issued by this contract for a single ledger
-/// sequence (instance + all persistent keys combined).
+/// Hard cap on `extend_ttl` calls issued by this contract for one invocation
+/// (instance + all persistent keys combined).
 ///
 /// Sized for representative workloads (one instance bump + a handful of user
 /// balance touches) with headroom, while keeping rent work bounded.
 pub const MAX_TTL_BUMPS_PER_INVOCATION: u32 = 8;
 
+/// Start the budget for one public invocation without discarding ledger dedup.
+///
+/// Every entrypoint that can renew storage calls this before its first access.
+/// A previous caller must not consume this invocation's extension allowance.
+/// Pure views do not call this helper; an unused budget needs no storage write.
+pub fn begin_invocation(env: &Env) {
+    if ttl_bump_count(env) != 0 {
+        env.storage().temporary().remove(&DataKey::TtlBumpCount);
+    }
+}
+
 /// Extend the time-to-live of the instance storage so the contract stays live.
 ///
 /// Deduped and budgeted: at most one instance bump per ledger sequence, and
-/// only if the per-ledger bump budget still has capacity.
+/// only if the per-invocation bump budget still has capacity.
 pub fn extend_instance(env: &Env) {
     if instance_already_bumped(env) {
         return;
@@ -212,7 +225,7 @@ pub fn clear_expected_wasm_hash(env: &Env) {
     env.storage().instance().remove(&DataKey::ExpectedWasmHash);
 }
 
-/// Number of TTL bumps performed so far for the current ledger sequence.
+/// Number of TTL bumps in the latest TTL-touching invocation (zero in a new ledger).
 ///
 /// Exposed for storage-instrumentation tests and operators probing rent spend.
 pub fn ttl_bump_count(env: &Env) -> u32 {
@@ -264,7 +277,7 @@ fn mark_balance_bumped(env: &Env, user: &Address) {
     );
 }
 
-/// Attempt to consume one unit of the per-ledger bump budget.
+/// Attempt to consume one unit of the per-invocation bump budget.
 ///
 /// Returns `false` when the budget is exhausted so callers can skip the host
 /// `extend_ttl` rather than unbounded-extend rent.

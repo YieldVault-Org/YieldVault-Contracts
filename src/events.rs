@@ -45,12 +45,7 @@ pub fn accrue_yield(
 /// Publishes a `rate` event recording that the annual yield rate changed to
 /// `rate_bps` at configuration `rate_version`, effective from `effective_at`
 /// (the accrual boundary at which the prior rate stopped applying).
-pub fn yield_rate_changed(
-    env: &Env,
-    rate_bps: u32,
-    rate_version: u32,
-    effective_at: u64,
-) {
+pub fn yield_rate_changed(env: &Env, rate_bps: u32, rate_version: u32, effective_at: u64) {
     let topics = (Symbol::new(env, "rate"),);
     env.events()
         .publish(topics, (rate_bps, rate_version, effective_at));

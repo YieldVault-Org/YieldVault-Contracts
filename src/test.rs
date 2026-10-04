@@ -678,7 +678,7 @@ fn test_accrue_yield_overflow_fails_closed() {
     // Establish a non-zero accrual boundary, then regress the clock.
     t.env.ledger().set_timestamp(10_000);
     assert_eq!(t.vault.accrue_yield(), 0); // advances boundary with zero credit at 5% over short gap from 0
-    // Re-pin a known boundary for a clean regression check.
+                                           // Re-pin a known boundary for a clean regression check.
     let last = t.vault.get_last_accrued_at();
     assert!(last > 0);
     let assets_before = t.vault.total_assets();
@@ -1070,7 +1070,6 @@ fn test_event_ordering_deposit_then_withdraw() {
     ));
 }
 
-
 // --- #70: bounded yield accrual with rate + timestamp semantics ------------
 
 #[test]
@@ -1115,7 +1114,9 @@ fn test_accrual_clamps_to_max_interval() {
     let last = t.vault.get_last_accrued_at();
     t.env.ledger().set_timestamp(last);
     t.vault.set_yield_rate(&10_000u32);
-    t.env.ledger().set_timestamp(last + 2 * crate::types::SECONDS_PER_YEAR);
+    t.env
+        .ledger()
+        .set_timestamp(last + 2 * crate::types::SECONDS_PER_YEAR);
     let credited = t.vault.accrue_yield();
     assert_eq!(credited, 1_000);
     assert_eq!(t.vault.total_assets(), 2_000);
@@ -1130,17 +1131,24 @@ fn test_set_yield_rate_applies_at_boundary() {
 
     // One year at the default 5% APY credits 500, then the rate switches to 10%.
     let last = t.vault.get_last_accrued_at();
-    t.env.ledger().set_timestamp(last + crate::types::SECONDS_PER_YEAR);
+    t.env
+        .ledger()
+        .set_timestamp(last + crate::types::SECONDS_PER_YEAR);
     let accrued = t.vault.set_yield_rate(&1_000u32);
     assert_eq!(accrued, 500);
     assert_eq!(t.vault.total_assets(), 10_500);
     assert_eq!(t.vault.get_yield_rate(), 1_000);
     assert_eq!(t.vault.get_yield_rate_version(), 2);
-    assert_eq!(t.vault.get_last_accrued_at(), last + crate::types::SECONDS_PER_YEAR);
+    assert_eq!(
+        t.vault.get_last_accrued_at(),
+        last + crate::types::SECONDS_PER_YEAR
+    );
 
     // Subsequent year at the new 10% rate credits 1_050 on the new principal.
     let boundary = t.vault.get_last_accrued_at();
-    t.env.ledger().set_timestamp(boundary + crate::types::SECONDS_PER_YEAR);
+    t.env
+        .ledger()
+        .set_timestamp(boundary + crate::types::SECONDS_PER_YEAR);
     let credited = t.vault.accrue_yield();
     assert_eq!(credited, 1_050);
     assert_eq!(t.vault.total_assets(), 11_550);
@@ -1149,7 +1157,9 @@ fn test_set_yield_rate_applies_at_boundary() {
 #[test]
 fn test_set_yield_rate_rejects_too_high() {
     let t = VaultTest::setup();
-    let res = t.vault.try_set_yield_rate(&(crate::types::MAX_YIELD_RATE_BPS + 1));
+    let res = t
+        .vault
+        .try_set_yield_rate(&(crate::types::MAX_YIELD_RATE_BPS + 1));
     assert_eq!(res, Err(Ok(crate::Error::YieldRateTooHigh)));
     assert_eq!(t.vault.get_yield_rate(), 500);
     assert_eq!(t.vault.get_yield_rate_version(), 1);
@@ -1175,4 +1185,121 @@ fn test_yield_rate_changed_event_payload() {
         data,
         (1_000u32, 2u32, last).into_val(&t.env)
     ));
+}
+
+// The return value and yield event must describe the actual credited assets,
+// including the aggregate saturation policy retained from ADR 0026.
+#[test]
+fn test_accrual_credit_matches_saturated_delta_and_event() {
+    let t = VaultTest::setup();
+    t.vault.set_yield_rate(&1u32);
+    let before = u128::MAX - 1;
+    t.env.as_contract(&t.vault.address, || {
+        crate::storage::set_total_assets(&t.env, before);
+    });
+    let now = t.vault.get_last_accrued_at() + 1;
+    t.env.ledger().set_timestamp(now);
+    let rate_version = t.vault.get_yield_rate_version();
+    assert!(crate::math::simple_yield(before, 1, 1).unwrap() > 1);
+
+    let credited = t.vault.accrue_yield();
+    let events = t.env.events().all();
+    assert_eq!(t.vault.total_assets(), u128::MAX);
+    assert_eq!(credited, t.vault.total_assets() - before);
+    assert_eq!(credited, 1);
+    assert_eq!(t.vault.get_last_accrued_at(), now);
+    let (contract_id, topics, data) = events.last().expect("yield event");
+    assert_eq!(contract_id, t.vault.address);
+    assert!(val_eq(
+        &t.env,
+        topics.get(0).unwrap(),
+        soroban_sdk::Symbol::new(&t.env, "yield").into_val(&t.env)
+    ));
+    assert!(val_eq(
+        &t.env,
+        data,
+        (credited, u128::MAX, now, rate_version).into_val(&t.env)
+    ));
+}
+
+#[test]
+fn test_accrual_credit_at_capacity_advances_clock_without_yield_event() {
+    let t = VaultTest::setup();
+    t.vault.set_yield_rate(&1u32);
+    t.env.as_contract(&t.vault.address, || {
+        crate::storage::set_total_assets(&t.env, u128::MAX);
+    });
+    let now = t.vault.get_last_accrued_at() + 1;
+    t.env.ledger().set_timestamp(now);
+
+    assert_eq!(t.vault.accrue_yield(), 0);
+    let events = t.env.events().all();
+    assert_eq!(t.vault.total_assets(), u128::MAX);
+    assert_eq!(t.vault.get_last_accrued_at(), now);
+    assert!(!events.iter().any(|(contract_id, topics, _)| {
+        contract_id == t.vault.address
+            && topics.get(0).map(|topic| {
+                val_eq(
+                    &t.env,
+                    topic,
+                    soroban_sdk::Symbol::new(&t.env, "yield").into_val(&t.env),
+                )
+            }) == Some(true)
+    }));
+    assert_eq!(t.vault.accrue_yield(), 0);
+}
+
+#[test]
+fn test_accrual_credit_rate_boundary_reports_actual_delta() {
+    let t = VaultTest::setup();
+    t.vault.set_yield_rate(&1u32);
+    t.env.as_contract(&t.vault.address, || {
+        crate::storage::set_total_assets(&t.env, u128::MAX - 1);
+    });
+    let now = t.vault.get_last_accrued_at() + 1;
+    let rate_version = t.vault.get_yield_rate_version();
+    t.env.ledger().set_timestamp(now);
+
+    assert_eq!(t.vault.set_yield_rate(&2u32), 1);
+    let events = t.env.events().all();
+    assert_eq!(t.vault.total_assets(), u128::MAX);
+    assert_eq!(t.vault.get_last_accrued_at(), now);
+    assert_eq!(t.vault.get_yield_rate(), 2);
+    assert_eq!(t.vault.get_yield_rate_version(), rate_version + 1);
+    let (_, _, yield_data) = events
+        .iter()
+        .find(|(contract_id, topics, _)| {
+            contract_id == &t.vault.address
+                && topics.get(0).map(|topic| {
+                    val_eq(
+                        &t.env,
+                        topic,
+                        soroban_sdk::Symbol::new(&t.env, "yield").into_val(&t.env),
+                    )
+                }) == Some(true)
+        })
+        .expect("settlement yield event");
+    assert!(val_eq(
+        &t.env,
+        yield_data,
+        (1u128, u128::MAX, now, rate_version).into_val(&t.env)
+    ));
+}
+
+#[test]
+fn test_accrual_credit_math_overflow_preserves_state() {
+    let t = VaultTest::setup();
+    t.vault.set_yield_rate(&10_000u32);
+    t.env.as_contract(&t.vault.address, || {
+        crate::storage::set_total_assets(&t.env, u128::MAX);
+    });
+    let last = t.vault.get_last_accrued_at();
+    t.env.ledger().set_timestamp(last + 1);
+
+    assert_eq!(
+        t.vault.try_accrue_yield(),
+        Err(Ok(crate::Error::MathOverflow))
+    );
+    assert_eq!(t.vault.total_assets(), u128::MAX);
+    assert_eq!(t.vault.get_last_accrued_at(), last);
 }

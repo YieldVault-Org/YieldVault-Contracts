@@ -20,7 +20,7 @@ mod test;
 
 pub use error::Error;
 
-use soroban_sdk::{contract, contractimpl, contractmeta, token, Address, BytesN, Env};
+use soroban_sdk::{contract, contractimpl, contractmeta, token, Address, BytesN, Env, Symbol};
 
 contractmeta!(
     key = "Description",
@@ -151,9 +151,14 @@ impl YieldVault {
         math::convert_to_assets(shares, total_shares, total_assets)
     }
 
-    /// Returns the amount of underlying assets `user` could withdraw by
-    /// redeeming their entire share balance at the current exchange rate.
+    /// Returns the amount of underlying assets `user` can currently withdraw.
+    ///
+    /// Returns zero while paused. Use [`Self::convert_to_assets`] or
+    /// [`Self::preview_withdraw`] to inspect the position value during a pause.
     pub fn max_withdraw(env: Env, user: Address) -> Result<u128, Error> {
+        if storage::is_paused(&env) {
+            return Ok(0);
+        }
         let shares = storage::get_balance(&env, &user);
         let total_shares = storage::get_total_shares(&env);
         let total_assets = storage::get_total_assets(&env);
@@ -165,23 +170,30 @@ impl YieldVault {
         storage::get_min_deposit(&env)
     }
 
-    /// Returns `true` if the vault is paused for new deposits.
+    /// Returns `true` if the vault is paused for value-moving operations.
     pub fn is_paused(env: Env) -> bool {
         storage::is_paused(&env)
     }
 
-    /// Pauses or resumes the vault's acceptance of new deposits.
+    /// Pauses or resumes every value-moving entrypoint.
     ///
-    /// Withdrawals remain available while paused so depositors can always exit.
-    /// Admin-only: requires authorization from the configured admin address.
-    pub fn set_paused(env: Env, paused: bool) -> Result<(), Error> {
+    /// While paused, [`Self::deposit`], [`Self::withdraw`], and
+    /// [`Self::accrue_yield`] return [`Error::Paused`]. Read-only getters and
+    /// administrative recovery paths (`set_paused`, `set_admin`,
+    /// `set_min_deposit`, `set_expected_wasm_hash`, `upgrade`) remain available
+    /// so operators can inspect state and recover.
+    ///
+    /// `reason` is a short symbol recorded in the `paused` event (for example
+    /// `incident`, `maintenance`, or `resume`) so indexers can attribute the
+    /// change. Admin-only: requires authorization from the configured admin.
+    pub fn set_paused(env: Env, paused: bool, reason: Symbol) -> Result<(), Error> {
         storage::require_initialized(&env)?;
         let admin = storage::get_admin(&env);
         admin.require_auth();
 
         storage::set_paused(&env, paused);
         storage::extend_instance(&env);
-        events::paused(&env, paused);
+        events::paused(&env, &admin, paused, &reason);
         Ok(())
     }
 
@@ -209,12 +221,16 @@ impl YieldVault {
         math::share_fraction_bps(shares, total_shares, types::BPS_DENOMINATOR)
     }
 
-    /// Returns the maximum number of shares `user` can redeem, which is simply
-    /// their current share balance.
+    /// Returns the maximum number of shares `user` can currently redeem.
+    ///
+    /// Returns zero while paused; [`Self::balance_of`] still reports ownership.
     ///
     /// Provided as the ERC4626-style counterpart to [`Self::max_withdraw`],
     /// which reports the same position denominated in underlying assets.
     pub fn max_redeem(env: Env, user: Address) -> u128 {
+        if storage::is_paused(&env) {
+            return 0;
+        }
         storage::get_balance(&env, &user)
     }
 
@@ -227,9 +243,7 @@ impl YieldVault {
         storage::require_initialized(&env)?;
         from.require_auth();
 
-        if storage::is_paused(&env) {
-            return Err(Error::Paused);
-        }
+        storage::require_not_paused(&env)?;
         if amount == 0 {
             return Err(Error::ZeroAmount);
         }
@@ -270,6 +284,7 @@ impl YieldVault {
         storage::require_initialized(&env)?;
         from.require_auth();
 
+        storage::require_not_paused(&env)?;
         if shares == 0 {
             return Err(Error::ZeroShares);
         }
@@ -312,6 +327,7 @@ impl YieldVault {
         let admin = storage::get_admin(&env);
         admin.require_auth();
 
+        storage::require_not_paused(&env)?;
         if amount == 0 {
             return Err(Error::ZeroAmount);
         }

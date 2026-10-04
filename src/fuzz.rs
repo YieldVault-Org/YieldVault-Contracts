@@ -89,7 +89,6 @@ fn fail_ctx(seed: u64, label: &str, detail: &str) -> std::string::String {
     std::format!("fuzz seed=0x{seed:016X} [{label}]: {detail}")
 }
 
-
 const MAX_REDUCTION_CHECKS: usize = 512;
 
 /// Reduce only a reproduced failure, with a fixed predicate-call budget.
@@ -170,9 +169,14 @@ fn fuzz_mul_div_floor_or_safe_reject() {
         match mul_div(a, b, d) {
             Err(Error::DivisionByZero) => {
                 assert_eq!(
-                    d, 0, "{}",
+                    d,
+                    0,
+                    "{}",
                     fail_case(
-                        (rng.seed(), i), "mul_div/div0", ["a", "b", "d"], [a, b, d],
+                        (rng.seed(), i),
+                        "mul_div/div0",
+                        ["a", "b", "d"],
+                        [a, b, d],
                         "err=DivisionByZero",
                         |[a, b, d]| d != 0 && mul_div(a, b, d) == Err(Error::DivisionByZero)
                     )
@@ -180,10 +184,14 @@ fn fuzz_mul_div_floor_or_safe_reject() {
             }
             Err(Error::MathOverflow) => {
                 assert!(
-                    a.checked_mul(b).is_none(), "{}",
+                    a.checked_mul(b).is_none(),
+                    "{}",
                     fail_case(
-                        (rng.seed(), i), "mul_div/overflow-false-positive",
-                        ["a", "b", "d"], [a, b, d], "err=MathOverflow",
+                        (rng.seed(), i),
+                        "mul_div/overflow-false-positive",
+                        ["a", "b", "d"],
+                        [a, b, d],
+                        "err=MathOverflow",
                         |[a, b, d]| a.checked_mul(b).is_some()
                             && mul_div(a, b, d) == Err(Error::MathOverflow)
                     )
@@ -194,30 +202,45 @@ fn fuzz_mul_div_floor_or_safe_reject() {
                     panic!(
                         "{}",
                         fail_case(
-                            (rng.seed(), i), "mul_div/ok-but-overflow",
-                            ["a", "b", "d"], [a, b, d], &std::format!("q={q}"),
+                            (rng.seed(), i),
+                            "mul_div/ok-but-overflow",
+                            ["a", "b", "d"],
+                            [a, b, d],
+                            &std::format!("q={q}"),
                             |[a, b, d]| a.checked_mul(b).is_none() && mul_div(a, b, d).is_ok()
                         )
                     )
                 });
                 assert_ne!(
-                    d, 0, "{}",
+                    d,
+                    0,
+                    "{}",
                     fail_case(
-                        (rng.seed(), i), "mul_div/ok-with-zero-denom",
-                        ["a", "b", "d"], [a, b, d], &std::format!("q={q} product={product}"),
-                        |[a, b, d]| d == 0 && a.checked_mul(b).is_some()
+                        (rng.seed(), i),
+                        "mul_div/ok-with-zero-denom",
+                        ["a", "b", "d"],
+                        [a, b, d],
+                        &std::format!("q={q} product={product}"),
+                        |[a, b, d]| d == 0
+                            && a.checked_mul(b).is_some()
                             && mul_div(a, b, d).is_ok()
                     )
                 );
                 assert_eq!(
-                    q, product / d, "{}",
+                    q,
+                    product / d,
+                    "{}",
                     fail_case(
-                        (rng.seed(), i), "mul_div/floor",
-                        ["a", "b", "d"], [a, b, d], &std::format!("q={q} product={product}"),
-                        |[a, b, d]| d > 0 && matches!(
-                            (a.checked_mul(b), mul_div(a, b, d)),
-                            (Some(product), Ok(value)) if value != product / d
-                        )
+                        (rng.seed(), i),
+                        "mul_div/floor",
+                        ["a", "b", "d"],
+                        [a, b, d],
+                        &std::format!("q={q} product={product}"),
+                        |[a, b, d]| d > 0
+                            && matches!(
+                                (a.checked_mul(b), mul_div(a, b, d)),
+                                (Some(product), Ok(value)) if value != product / d
+                            )
                     )
                 );
             }
@@ -225,8 +248,11 @@ fn fuzz_mul_div_floor_or_safe_reject() {
                 panic!(
                     "{}",
                     fail_case(
-                        (rng.seed(), i), "mul_div/unexpected-err",
-                        ["a", "b", "d"], [a, b, d], &std::format!("err={other:?}"),
+                        (rng.seed(), i),
+                        "mul_div/unexpected-err",
+                        ["a", "b", "d"],
+                        [a, b, d],
+                        &std::format!("err={other:?}"),
                         |[a, b, d]| mul_div(a, b, d) == Err(other)
                     )
                 );
@@ -249,10 +275,13 @@ fn fuzz_convert_round_trip_conserves_value() {
             Err(e) => panic!(
                 "{}",
                 fail_case(
-                    (rng.seed(), i), "shares/unexpected",
+                    (rng.seed(), i),
+                    "shares/unexpected",
                     ["assets", "total_shares", "total_assets"],
-                    [assets, total_shares, total_assets], &std::format!("err={e:?}"),
-                    |[assets, ts, ta]| ts > 0 && ta > 0
+                    [assets, total_shares, total_assets],
+                    &std::format!("err={e:?}"),
+                    |[assets, ts, ta]| ts > 0
+                        && ta > 0
                         && convert_to_shares(assets, ts, ta) == Err(e)
                 )
             ),
@@ -264,11 +293,13 @@ fn fuzz_convert_round_trip_conserves_value() {
             Err(e) => panic!(
                 "{}",
                 fail_case(
-                    (rng.seed(), i), "assets/unexpected",
+                    (rng.seed(), i),
+                    "assets/unexpected",
                     ["assets", "total_shares", "total_assets"],
                     [assets, total_shares, total_assets],
                     &std::format!("shares={shares} err={e:?}"),
-                    |[assets, ts, ta]| ts > 0 && ta > 0
+                    |[assets, ts, ta]| ts > 0
+                        && ta > 0
                         && matches!(convert_to_shares(assets, ts, ta),
                             Ok(shares) if convert_to_assets(shares, ts, ta) == Err(e))
                 )
@@ -276,13 +307,16 @@ fn fuzz_convert_round_trip_conserves_value() {
         };
 
         assert!(
-            back <= assets, "{}",
+            back <= assets,
+            "{}",
             fail_case(
-                (rng.seed(), i), "conservation/assets-roundtrip",
+                (rng.seed(), i),
+                "conservation/assets-roundtrip",
                 ["assets", "total_shares", "total_assets"],
                 [assets, total_shares, total_assets],
                 &std::format!("shares={shares} back={back}"),
-                |[assets, ts, ta]| ts > 0 && ta > 0
+                |[assets, ts, ta]| ts > 0
+                    && ta > 0
                     && matches!(convert_to_shares(assets, ts, ta)
                         .and_then(|shares| convert_to_assets(shares, ts, ta)),
                         Ok(back) if back > assets)
@@ -305,10 +339,13 @@ fn fuzz_convert_shares_round_trip_conserves() {
             Err(e) => panic!(
                 "{}",
                 fail_case(
-                    (rng.seed(), i), "assets/unexpected",
+                    (rng.seed(), i),
+                    "assets/unexpected",
                     ["shares", "total_shares", "total_assets"],
-                    [shares, total_shares, total_assets], &std::format!("err={e:?}"),
-                    |[shares, ts, ta]| ts > 0 && ta > 0
+                    [shares, total_shares, total_assets],
+                    &std::format!("err={e:?}"),
+                    |[shares, ts, ta]| ts > 0
+                        && ta > 0
                         && convert_to_assets(shares, ts, ta) == Err(e)
                 )
             ),
@@ -320,11 +357,13 @@ fn fuzz_convert_shares_round_trip_conserves() {
             Err(e) => panic!(
                 "{}",
                 fail_case(
-                    (rng.seed(), i), "shares/unexpected",
+                    (rng.seed(), i),
+                    "shares/unexpected",
                     ["shares", "total_shares", "total_assets"],
                     [shares, total_shares, total_assets],
                     &std::format!("assets={assets} err={e:?}"),
-                    |[shares, ts, ta]| ts > 0 && ta > 0
+                    |[shares, ts, ta]| ts > 0
+                        && ta > 0
                         && matches!(convert_to_assets(shares, ts, ta),
                             Ok(assets) if convert_to_shares(assets, ts, ta) == Err(e))
                 )
@@ -332,13 +371,16 @@ fn fuzz_convert_shares_round_trip_conserves() {
         };
 
         assert!(
-            back <= shares, "{}",
+            back <= shares,
+            "{}",
             fail_case(
-                (rng.seed(), i), "conservation/shares-roundtrip",
+                (rng.seed(), i),
+                "conservation/shares-roundtrip",
                 ["shares", "total_shares", "total_assets"],
                 [shares, total_shares, total_assets],
                 &std::format!("assets={assets} back={back}"),
-                |[shares, ts, ta]| ts > 0 && ta > 0
+                |[shares, ts, ta]| ts > 0
+                    && ta > 0
                     && matches!(convert_to_assets(shares, ts, ta)
                         .and_then(|assets| convert_to_shares(assets, ts, ta)),
                         Ok(back) if back > shares)
@@ -363,10 +405,14 @@ fn fuzz_convert_to_shares_monotonic() {
             Err(e) => panic!(
                 "{}",
                 fail_case(
-                    (rng.seed(), i), "mono/lo",
+                    (rng.seed(), i),
+                    "mono/lo",
                     ["lo_assets", "hi_assets", "total_shares", "total_assets"],
-                    [lo, hi, total_shares, total_assets], &std::format!("err={e:?}"),
-                    |[lo, hi, ts, ta]| lo <= hi && ts > 0 && ta > 0
+                    [lo, hi, total_shares, total_assets],
+                    &std::format!("err={e:?}"),
+                    |[lo, hi, ts, ta]| lo <= hi
+                        && ts > 0
+                        && ta > 0
                         && convert_to_shares(lo, ts, ta) == Err(e)
                 )
             ),
@@ -377,11 +423,14 @@ fn fuzz_convert_to_shares_monotonic() {
             Err(e) => panic!(
                 "{}",
                 fail_case(
-                    (rng.seed(), i), "mono/hi",
+                    (rng.seed(), i),
+                    "mono/hi",
                     ["lo_assets", "hi_assets", "total_shares", "total_assets"],
                     [lo, hi, total_shares, total_assets],
                     &std::format!("s_lo={s_lo} err={e:?}"),
-                    |[lo, hi, ts, ta]| lo <= hi && ts > 0 && ta > 0
+                    |[lo, hi, ts, ta]| lo <= hi
+                        && ts > 0
+                        && ta > 0
                         && convert_to_shares(lo, ts, ta).is_ok()
                         && convert_to_shares(hi, ts, ta) == Err(e)
                 )
@@ -389,13 +438,17 @@ fn fuzz_convert_to_shares_monotonic() {
         };
 
         assert!(
-            s_lo <= s_hi, "{}",
+            s_lo <= s_hi,
+            "{}",
             fail_case(
-                (rng.seed(), i), "monotonicity/shares",
+                (rng.seed(), i),
+                "monotonicity/shares",
                 ["lo_assets", "hi_assets", "total_shares", "total_assets"],
                 [lo, hi, total_shares, total_assets],
                 &std::format!("s_lo={s_lo} s_hi={s_hi}"),
-                |[lo, hi, ts, ta]| lo <= hi && ts > 0 && ta > 0
+                |[lo, hi, ts, ta]| lo <= hi
+                    && ts > 0
+                    && ta > 0
                     && matches!((convert_to_shares(lo, ts, ta), convert_to_shares(hi, ts, ta)),
                         (Ok(low), Ok(high)) if low > high)
             )
@@ -419,10 +472,14 @@ fn fuzz_convert_to_assets_monotonic() {
             Err(e) => panic!(
                 "{}",
                 fail_case(
-                    (rng.seed(), i), "mono/lo",
+                    (rng.seed(), i),
+                    "mono/lo",
                     ["lo_shares", "hi_shares", "total_shares", "total_assets"],
-                    [lo, hi, total_shares, total_assets], &std::format!("err={e:?}"),
-                    |[lo, hi, ts, ta]| lo <= hi && ts > 0 && ta > 0
+                    [lo, hi, total_shares, total_assets],
+                    &std::format!("err={e:?}"),
+                    |[lo, hi, ts, ta]| lo <= hi
+                        && ts > 0
+                        && ta > 0
                         && convert_to_assets(lo, ts, ta) == Err(e)
                 )
             ),
@@ -433,11 +490,14 @@ fn fuzz_convert_to_assets_monotonic() {
             Err(e) => panic!(
                 "{}",
                 fail_case(
-                    (rng.seed(), i), "mono/hi",
+                    (rng.seed(), i),
+                    "mono/hi",
                     ["lo_shares", "hi_shares", "total_shares", "total_assets"],
                     [lo, hi, total_shares, total_assets],
                     &std::format!("a_lo={a_lo} err={e:?}"),
-                    |[lo, hi, ts, ta]| lo <= hi && ts > 0 && ta > 0
+                    |[lo, hi, ts, ta]| lo <= hi
+                        && ts > 0
+                        && ta > 0
                         && convert_to_assets(lo, ts, ta).is_ok()
                         && convert_to_assets(hi, ts, ta) == Err(e)
                 )
@@ -445,13 +505,17 @@ fn fuzz_convert_to_assets_monotonic() {
         };
 
         assert!(
-            a_lo <= a_hi, "{}",
+            a_lo <= a_hi,
+            "{}",
             fail_case(
-                (rng.seed(), i), "monotonicity/assets",
+                (rng.seed(), i),
+                "monotonicity/assets",
                 ["lo_shares", "hi_shares", "total_shares", "total_assets"],
                 [lo, hi, total_shares, total_assets],
                 &std::format!("a_lo={a_lo} a_hi={a_hi}"),
-                |[lo, hi, ts, ta]| lo <= hi && ts > 0 && ta > 0
+                |[lo, hi, ts, ta]| lo <= hi
+                    && ts > 0
+                    && ta > 0
                     && matches!((convert_to_assets(lo, ts, ta), convert_to_assets(hi, ts, ta)),
                         (Ok(low), Ok(high)) if low > high)
             )
@@ -473,20 +537,31 @@ fn fuzz_share_fraction_bps_bounded() {
             Err(e) => panic!(
                 "{}",
                 fail_case(
-                    (rng.seed(), i), "bps/unexpected", ["shares", "total_shares", "bps"],
-                    [shares, total_shares, bps], &std::format!("err={e:?}"),
-                    |[shares, ts, bps]| ts > 0 && shares <= ts && bps > 0
+                    (rng.seed(), i),
+                    "bps/unexpected",
+                    ["shares", "total_shares", "bps"],
+                    [shares, total_shares, bps],
+                    &std::format!("err={e:?}"),
+                    |[shares, ts, bps]| ts > 0
+                        && shares <= ts
+                        && bps > 0
                         && share_fraction_bps(shares, ts, bps) == Err(e)
                 )
             ),
         };
 
         assert!(
-            frac <= bps, "{}",
+            frac <= bps,
+            "{}",
             fail_case(
-                (rng.seed(), i), "bounded-fee/bps", ["shares", "total_shares", "bps"],
-                [shares, total_shares, bps], &std::format!("frac={frac}"),
-                |[shares, ts, bps]| ts > 0 && shares <= ts && bps > 0
+                (rng.seed(), i),
+                "bounded-fee/bps",
+                ["shares", "total_shares", "bps"],
+                [shares, total_shares, bps],
+                &std::format!("frac={frac}"),
+                |[shares, ts, bps]| ts > 0
+                    && shares <= ts
+                    && bps > 0
                     && matches!(share_fraction_bps(shares, ts, bps), Ok(frac) if frac > bps)
             )
         );
@@ -508,9 +583,13 @@ fn fuzz_price_per_share_monotonic_in_assets() {
             Err(e) => panic!(
                 "{}",
                 fail_case(
-                    (rng.seed(), i), "pps/lo", ["lo_assets", "hi_assets", "total_shares"],
-                    [lo, hi, total_shares], &std::format!("scale={PRICE_SCALE} err={e:?}"),
-                    |[lo, hi, ts]| lo <= hi && ts > 0
+                    (rng.seed(), i),
+                    "pps/lo",
+                    ["lo_assets", "hi_assets", "total_shares"],
+                    [lo, hi, total_shares],
+                    &std::format!("scale={PRICE_SCALE} err={e:?}"),
+                    |[lo, hi, ts]| lo <= hi
+                        && ts > 0
                         && price_per_share(ts, lo, PRICE_SCALE) == Err(e)
                 )
             ),
@@ -521,10 +600,13 @@ fn fuzz_price_per_share_monotonic_in_assets() {
             Err(e) => panic!(
                 "{}",
                 fail_case(
-                    (rng.seed(), i), "pps/hi", ["lo_assets", "hi_assets", "total_shares"],
+                    (rng.seed(), i),
+                    "pps/hi",
+                    ["lo_assets", "hi_assets", "total_shares"],
                     [lo, hi, total_shares],
                     &std::format!("p_lo={p_lo} scale={PRICE_SCALE} err={e:?}"),
-                    |[lo, hi, ts]| lo <= hi && ts > 0
+                    |[lo, hi, ts]| lo <= hi
+                        && ts > 0
                         && price_per_share(ts, lo, PRICE_SCALE).is_ok()
                         && price_per_share(ts, hi, PRICE_SCALE) == Err(e)
                 )
@@ -532,12 +614,16 @@ fn fuzz_price_per_share_monotonic_in_assets() {
         };
 
         assert!(
-            p_lo <= p_hi, "{}",
+            p_lo <= p_hi,
+            "{}",
             fail_case(
-                (rng.seed(), i), "rate/pps-monotonic",
-                ["lo_assets", "hi_assets", "total_shares"], [lo, hi, total_shares],
+                (rng.seed(), i),
+                "rate/pps-monotonic",
+                ["lo_assets", "hi_assets", "total_shares"],
+                [lo, hi, total_shares],
                 &std::format!("p_lo={p_lo} p_hi={p_hi} scale={PRICE_SCALE}"),
-                |[lo, hi, ts]| lo <= hi && ts > 0
+                |[lo, hi, ts]| lo <= hi
+                    && ts > 0
                     && matches!((price_per_share(ts, lo, PRICE_SCALE),
                         price_per_share(ts, hi, PRICE_SCALE)),
                         (Ok(low), Ok(high)) if low > high)
@@ -554,9 +640,14 @@ fn fuzz_empty_vault_bootstrap_and_zero_totals() {
         let assets = rng.gen_amount();
         let empty_shares = convert_to_shares(assets, 0, 0);
         assert_eq!(
-            empty_shares, Ok(assets), "{}",
+            empty_shares,
+            Ok(assets),
+            "{}",
             fail_case(
-                (rng.seed(), i), "empty/shares", ["assets"], [assets],
+                (rng.seed(), i),
+                "empty/shares",
+                ["assets"],
+                [assets],
                 &std::format!("total_shares=0 total_assets=0 result={empty_shares:?}"),
                 |[assets]| same_mismatch(empty_shares, convert_to_shares(assets, 0, 0), assets)
             )
@@ -564,9 +655,13 @@ fn fuzz_empty_vault_bootstrap_and_zero_totals() {
         let bootstrap_assets = rng.gen_positive();
         let zero_ts_shares = convert_to_shares(assets, 0, bootstrap_assets);
         assert_eq!(
-            zero_ts_shares, Ok(assets), "{}",
+            zero_ts_shares,
+            Ok(assets),
+            "{}",
             fail_case(
-                (rng.seed(), i), "empty/shares-zero-ts", ["assets", "total_assets"],
+                (rng.seed(), i),
+                "empty/shares-zero-ts",
+                ["assets", "total_assets"],
                 [assets, bootstrap_assets],
                 &std::format!("total_shares=0 result={zero_ts_shares:?}"),
                 |[assets, ta]| ta > 0
@@ -577,30 +672,47 @@ fn fuzz_empty_vault_bootstrap_and_zero_totals() {
         let redeem_assets = rng.gen_amount();
         let redeemed = convert_to_assets(shares, 0, redeem_assets);
         assert_eq!(
-            redeemed, Ok(0), "{}",
+            redeemed,
+            Ok(0),
+            "{}",
             fail_case(
-                (rng.seed(), i), "empty/assets", ["shares", "total_assets"],
-                [shares, redeem_assets], &std::format!("total_shares=0 result={redeemed:?}"),
+                (rng.seed(), i),
+                "empty/assets",
+                ["shares", "total_assets"],
+                [shares, redeem_assets],
+                &std::format!("total_shares=0 result={redeemed:?}"),
                 |[shares, ta]| same_mismatch(redeemed, convert_to_assets(shares, 0, ta), 0)
             )
         );
         let fraction = share_fraction_bps(shares, 0, BPS_DENOMINATOR);
         assert_eq!(
-            fraction, Ok(0), "{}",
+            fraction,
+            Ok(0),
+            "{}",
             fail_case(
-                (rng.seed(), i), "empty/bps", ["shares"], [shares],
+                (rng.seed(), i),
+                "empty/bps",
+                ["shares"],
+                [shares],
                 &std::format!("total_shares=0 bps={BPS_DENOMINATOR} result={fraction:?}"),
                 |[shares]| same_mismatch(
-                    fraction, share_fraction_bps(shares, 0, BPS_DENOMINATOR), 0
+                    fraction,
+                    share_fraction_bps(shares, 0, BPS_DENOMINATOR),
+                    0
                 )
             )
         );
         let price_assets = rng.gen_amount();
         let price = price_per_share(0, price_assets, PRICE_SCALE);
         assert_eq!(
-            price, Ok(PRICE_SCALE), "{}",
+            price,
+            Ok(PRICE_SCALE),
+            "{}",
             fail_case(
-                (rng.seed(), i), "empty/pps", ["total_assets"], [price_assets],
+                (rng.seed(), i),
+                "empty/pps",
+                ["total_assets"],
+                [price_assets],
                 &std::format!("total_shares=0 scale={PRICE_SCALE} result={price:?}"),
                 |[ta]| same_mismatch(price, price_per_share(0, ta, PRICE_SCALE), PRICE_SCALE)
             )
@@ -615,8 +727,11 @@ fn fuzz_regression_fixtures_overflow_and_bounds() {
         mul_div(u128::MAX, 2, 1),
         Err(Error::MathOverflow),
         "{}",
-        fail_ctx(FUZZ_SEED, "fixture/mul_div-overflow",
-            &std::format!("i=0 a={} b=2 d=1", u128::MAX))
+        fail_ctx(
+            FUZZ_SEED,
+            "fixture/mul_div-overflow",
+            &std::format!("i=0 a={} b=2 d=1", u128::MAX)
+        )
     );
     assert_eq!(
         mul_div(1, 1, 0),
@@ -626,7 +741,9 @@ fn fuzz_regression_fixtures_overflow_and_bounds() {
     );
     // Flooring: 1*1/2 == 0.
     assert_eq!(
-        mul_div(1, 1, 2), Ok(0), "{}",
+        mul_div(1, 1, 2),
+        Ok(0),
+        "{}",
         fail_ctx(FUZZ_SEED, "fixture/mul_div-floor-dust", "i=2 a=1 b=1 d=2")
     );
     // Full ownership reports exactly bps.
@@ -634,46 +751,69 @@ fn fuzz_regression_fixtures_overflow_and_bounds() {
         share_fraction_bps(1_000, 1_000, BPS_DENOMINATOR),
         Ok(BPS_DENOMINATOR),
         "{}",
-        fail_ctx(FUZZ_SEED, "fixture/full-ownership",
-            &std::format!("i=3 shares=1000 total_shares=1000 bps={BPS_DENOMINATOR}"))
+        fail_ctx(
+            FUZZ_SEED,
+            "fixture/full-ownership",
+            &std::format!("i=3 shares=1000 total_shares=1000 bps={BPS_DENOMINATOR}")
+        )
     );
     // Partial ownership never exceeds bps.
     assert_eq!(
         share_fraction_bps(1, 3, BPS_DENOMINATOR),
         Ok(3333),
         "{}",
-        fail_ctx(FUZZ_SEED, "fixture/partial-ownership",
-            &std::format!("i=4 shares=1 total_shares=3 bps={BPS_DENOMINATOR}"))
+        fail_ctx(
+            FUZZ_SEED,
+            "fixture/partial-ownership",
+            &std::format!("i=4 shares=1 total_shares=3 bps={BPS_DENOMINATOR}")
+        )
     );
     // convert overflow path (assets * total_shares overflows).
     assert_eq!(
         convert_to_shares(u128::MAX, u128::MAX, 1),
         Err(Error::MathOverflow),
         "{}",
-        fail_ctx(FUZZ_SEED, "fixture/convert-to-shares-overflow",
-            &std::format!("i=5 assets={} total_shares={} total_assets=1", u128::MAX, u128::MAX))
+        fail_ctx(
+            FUZZ_SEED,
+            "fixture/convert-to-shares-overflow",
+            &std::format!(
+                "i=5 assets={} total_shares={} total_assets=1",
+                u128::MAX,
+                u128::MAX
+            )
+        )
     );
     assert_eq!(
         convert_to_assets(u128::MAX, 1, u128::MAX),
         Err(Error::MathOverflow),
         "{}",
-        fail_ctx(FUZZ_SEED, "fixture/convert-to-assets-overflow",
-            &std::format!("i=6 shares={} total_shares=1 total_assets={}", u128::MAX, u128::MAX))
+        fail_ctx(
+            FUZZ_SEED,
+            "fixture/convert-to-assets-overflow",
+            &std::format!(
+                "i=6 shares={} total_shares=1 total_assets={}",
+                u128::MAX,
+                u128::MAX
+            )
+        )
     );
 
     // Exercise the reporter/reducer here without another suite or ledger Env.
     let input = [u128::MAX, 2, 1];
-    let same_overflow = |[a, b, d]: [u128; 3]| {
-        d > 0 && mul_div(a, b, d) == Err(Error::MathOverflow)
-    };
+    let same_overflow =
+        |[a, b, d]: [u128; 3]| d > 0 && mul_div(a, b, d) == Err(Error::MathOverflow);
     let reduced = reduce_counterexample(input, same_overflow);
     assert!(reduced.2 && reduced.0 != input && same_overflow(reduced.0));
     assert!(reduced.1 <= MAX_REDUCTION_CHECKS);
     assert_eq!(reduced, reduce_counterexample(input, same_overflow));
     assert!(!reduce_counterexample([1, 1, 1], same_overflow).2);
     let report = fail_case(
-        (FUZZ_SEED, 7), "reporter/overflow", ["a", "b", "d"], input,
-        "err=MathOverflow", same_overflow,
+        (FUZZ_SEED, 7),
+        "reporter/overflow",
+        ["a", "b", "d"],
+        input,
+        "err=MathOverflow",
+        same_overflow,
     );
     assert!(report.contains(&std::format!("seed=0x{FUZZ_SEED:016X} i=7")));
     assert!(report.contains(&std::format!("{}", u128::MAX)));

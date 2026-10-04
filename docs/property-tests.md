@@ -20,7 +20,8 @@ transitions lives in `src/fuzz.rs` (issue #74).
 - Fixed regression fixtures retain their complete fixed inputs. Stateful vault
   failures retain raw deposit/yield inputs and available results; they do not
   run a reducer or create additional ledger snapshots. A captured context line
-  before the first mutation also identifies native-operation panics.
+  before funding and deposit/yield/withdraw operations also identifies
+  panics from those native calls.
 
 The existing regression-fixture function checks that reduction is deterministic,
 retains a positive divisor and the same overflow error, observes its budget, and
@@ -52,3 +53,9 @@ No invariant is weakened to obtain a green run. Existing example-based tests
 in `src/test.rs` remain the readable regression layer alongside this suite.
 
 See the README and the sources under `src/` for the authoritative implementation.
+
+## Verification of the counterexample reporting update
+
+The [hosted validation run](https://github.com/woahwhattheheck/YieldVault-Contracts/actions/runs/37203561556) used Rust 1.99.0 and the locked dependency graph. The maintained suite passed with 62 tests passed, zero failed, and the same three pre-existing ignored tests. `cargo fmt --all -- --check`, `cargo clippy --lib --locked -- -D warnings`, and `cargo build --locked --release --target wasm32-unknown-unknown` also passed.
+
+The runner started from candidate `774557b19c071d5f4df346948b1cd974aa452db2`, applied the formatter, and recorded the exact tested source: `src/fuzz.rs` blob `864d427d906deb680fca04e3b3092cc153abc5cb` and `src/storage.rs` blob `daf9c31b08a76f59c36886343c29d1d1763c6fc4`. The storage change only collapses two existing accessor chains onto single lines; it changes no behavior. The ten fuzz test functions, random draw sequence, iteration counts, and eight existing stateful cases remain unchanged. No new ledger snapshots are included in this update.

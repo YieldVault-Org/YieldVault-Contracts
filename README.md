@@ -37,6 +37,7 @@ of the underlying token.
 | `share_percentage(user)` | A user's share of the vault, in basis points. |
 | `get_apy()` | Advertised APY in basis points. |
 | `is_initialized()` | Whether the vault has been set up. |
+| `is_paused()` | Whether deposits are currently paused. |
 | `version()` | On-chain contract interface version. |
 | `get_min_deposit()` | The smallest accepted deposit amount. |
 | `get_admin()` / `get_token()` | Configuration getters. |

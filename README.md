@@ -44,14 +44,31 @@ of the underlying token.
 
 ## Admin operations
 
-The configured admin address authorizes the following privileged entrypoints:
+Each entrypoint uses the authorization shown below. Proposal inspection is
+read-only and does not require either administrator's authorization.
 
-| Function | Description |
-| --- | --- |
-| `accrue_yield(amount)` | Apply mock yield, raising the value of every share. |
-| `set_paused(paused)` | Pause or resume new deposits; withdrawals stay open. |
-| `set_min_deposit(amount)` | Set the minimum accepted deposit amount. |
-| `set_admin(new_admin)` | Transfer the admin role to another address. |
+| Function | Required authorization | Description |
+| --- | --- | --- |
+| `accrue_yield(amount)` | Current admin | Apply mock yield, raising the value of every share. |
+| `set_paused(paused)` | Current admin | Pause or resume new deposits; withdrawals stay open. |
+| `set_min_deposit(amount)` | Current admin | Set the minimum accepted deposit amount. |
+| `propose_admin(new_admin)` | Current admin | Stage or replace a two-step admin rotation (7-day TTL); rejects the current admin as the nominee. |
+| `accept_admin()` | Pending admin | Accept the proposal, take control, and clear the staged proposal. |
+| `cancel_admin_proposal()` | Current admin | Cancel an unaccepted proposal, including an expired one. |
+| `get_pending_admin()` / `get_admin_proposal_expiry()` | None | Inspect the staged nominee and expiry timestamp. |
+
+On-chain interface version 3 removes immediate `set_admin`. Integrators must
+first call `propose_admin(new_admin)` with current-admin authorization, then
+call `accept_admin()` with the nominated account's authorization. Proposing
+alone leaves the active admin unchanged; only successful acceptance transfers
+the role.
+
+Expiry uses the ledger timestamp. Acceptance fails with `AdminProposalExpired`
+when the ledger time is greater than the proposal's expiry timestamp and leaves
+the active admin unchanged. An expired proposal remains visible to the getters
+until the current admin cancels it or overwrites it with a new proposal; a
+nonempty pending-admin getter alone does not establish that acceptance is still
+allowed.
 
 While the vault is paused, `deposit` returns `Paused` but `withdraw` continues
 to work so depositors can always exit their position.

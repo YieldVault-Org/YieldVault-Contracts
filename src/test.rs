@@ -350,6 +350,9 @@ fn test_two_step_admin_rotation_requires_acceptance() {
 
     // Propose alone must not transfer control.
     t.vault.propose_admin(&new_admin);
+    let auths = t.env.auths();
+    assert_eq!(auths.len(), 1);
+    assert_eq!(auths[0].0, t.admin);
     assert_eq!(t.vault.get_admin(), t.admin);
     assert_eq!(t.vault.get_pending_admin(), Some(new_admin.clone()));
     let expiry = t.vault.get_admin_proposal_expiry().expect("expiry set");
@@ -357,9 +360,16 @@ fn test_two_step_admin_rotation_requires_acceptance() {
 
     // Acceptance by the pending admin completes the rotation.
     t.vault.accept_admin();
+    let auths = t.env.auths();
+    assert_eq!(auths.len(), 1);
+    assert_eq!(auths[0].0, new_admin);
     assert_eq!(t.vault.get_admin(), new_admin);
     assert!(t.vault.get_pending_admin().is_none());
     assert!(t.vault.get_admin_proposal_expiry().is_none());
+
+    // Acceptance consumes the proposal: it cannot be replayed.
+    let replay = t.vault.try_accept_admin();
+    assert_eq!(replay, Err(Ok(crate::Error::NoPendingAdminProposal)));
 }
 
 #[test]
@@ -371,6 +381,9 @@ fn test_cancel_admin_proposal_keeps_current_admin() {
     assert_eq!(t.vault.get_pending_admin(), Some(new_admin.clone()));
 
     t.vault.cancel_admin_proposal();
+    let auths = t.env.auths();
+    assert_eq!(auths.len(), 1);
+    assert_eq!(auths[0].0, t.admin);
     assert_eq!(t.vault.get_admin(), t.admin);
     assert!(t.vault.get_pending_admin().is_none());
 
@@ -648,7 +661,7 @@ fn test_upgrade_requires_expected_hash_to_be_staged() {
 
 #[test]
 fn test_upgrade_mismatch_is_rejected() {
-    // Stage hash A, then attempt upgrade with hash B — must fail atomically.
+    // Stage hash A, then attempt upgrade with hash B â must fail atomically.
     let t = VaultTest::setup();
     let correct_hash = upload_dummy_wasm(&t.env);
     let wrong_hash = BytesN::from_array(&t.env, &[0xde; 32]);
@@ -661,7 +674,7 @@ fn test_upgrade_mismatch_is_rejected() {
 
 #[test]
 fn test_upgrade_state_preserved_on_mismatch() {
-    // All vault state — including the staged hash — must be unchanged after
+    // All vault state â including the staged hash â must be unchanged after
     // a rejected upgrade attempt.
     let t = VaultTest::setup();
     let user = Address::generate(&t.env);
@@ -680,7 +693,7 @@ fn test_upgrade_state_preserved_on_mismatch() {
     assert_eq!(t.vault.balance_of(&user), 1_000);
     assert_eq!(t.vault.get_admin(), t.admin);
 
-    // The staged hash is still present — a mismatch must not clear it.
+    // The staged hash is still present â a mismatch must not clear it.
     // Confirm by retrying with the correct hash, which must now succeed.
     t.vault.upgrade(&correct_hash);
 }
@@ -708,7 +721,7 @@ fn test_set_expected_wasm_hash_without_auth_fails() {
     let vault = YieldVaultClient::new(&env, &vault_address);
     vault.initialize(&admin, &token_address);
 
-    // No mock_all_auths — authorization will be denied.
+    // No mock_all_auths â authorization will be denied.
     let hash = BytesN::from_array(&env, &[0xab; 32]);
     // Expect the auth failure to panic (same pattern as test_upgrade_without_auth_fails).
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -757,7 +770,7 @@ fn test_saturating_sub_floors_total_shares_on_withdraw() {
     t.mint(&user, 1_000);
     let shares = t.vault.deposit(&user, &1_000u128);
 
-    // Full withdrawal uses saturating_sub on totals — they floor at zero.
+    // Full withdrawal uses saturating_sub on totals â they floor at zero.
     let assets = t.vault.withdraw(&user, &shares);
     assert_eq!(assets, 1_000);
     assert_eq!(t.vault.total_shares(), 0);
@@ -959,7 +972,7 @@ fn test_accrue_yield_event_payload_after_deposit() {
     ));
     assert_eq!(topics.len(), 1);
 
-    // Data: (amount, total_assets) = (500, 1_500) — cumulative figure.
+    // Data: (amount, total_assets) = (500, 1_500) â cumulative figure.
     assert!(val_eq(&t.env, data, (500u128, 1_500u128).into_val(&t.env)));
 }
 

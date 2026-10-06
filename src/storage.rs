@@ -196,6 +196,14 @@ pub fn set_yield_rate_version(env: &Env, version: u32) {
         .set(&DataKey::YieldRateVersion, &version);
 }
 
+/// Returns whether the v3 accrual clock has been initialized.
+///
+/// Pre-v3 vault instances do not have this key after a Wasm upgrade. Callers
+/// must distinguish that migration state from a real timestamp of zero.
+pub fn has_last_accrued_at(env: &Env) -> bool {
+    env.storage().instance().has(&DataKey::LastAccruedAt)
+}
+
 /// Reads the last-accrued ledger timestamp, defaulting to 0 when unset.
 pub fn get_last_accrued_at(env: &Env) -> u64 {
     env.storage()

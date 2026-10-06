@@ -1073,6 +1073,52 @@ fn test_event_ordering_deposit_then_withdraw() {
 // --- #70: bounded yield accrual with rate + timestamp semantics ------------
 
 #[test]
+fn test_upgrade_from_v2_seeds_clock_without_retroactive_yield() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 1_000);
+    t.vault.deposit(&user, &1_000u128);
+
+    // Simulate persisted v2 state after a Wasm upgrade: the vault's existing
+    // balances/config survive, but the v3 yield-rate/version/clock keys do not
+    // exist yet.
+    t.env.as_contract(&t.vault.address, || {
+        t.env
+            .storage()
+            .instance()
+            .remove(&crate::types::DataKey::YieldRateBps);
+        t.env
+            .storage()
+            .instance()
+            .remove(&crate::types::DataKey::YieldRateVersion);
+        t.env
+            .storage()
+            .instance()
+            .remove(&crate::types::DataKey::LastAccruedAt);
+    });
+
+    let migrated_at = 2 * crate::types::SECONDS_PER_YEAR;
+    t.env.ledger().set_timestamp(migrated_at);
+
+    // The first v3 rate change establishes the migration boundary instead of
+    // interpreting the missing clock as timestamp zero and crediting a capped
+    // year at the fallback rate.
+    let accrued = t.vault.set_yield_rate(&1_000u32);
+    assert_eq!(accrued, 0);
+    assert_eq!(t.vault.total_assets(), 1_000);
+    assert_eq!(t.vault.get_last_accrued_at(), migrated_at);
+    assert_eq!(t.vault.get_yield_rate(), 1_000);
+    assert_eq!(t.vault.get_yield_rate_version(), 2);
+
+    // Accrual starts normally from the seeded boundary at the configured rate.
+    t.env
+        .ledger()
+        .set_timestamp(migrated_at + crate::types::SECONDS_PER_YEAR);
+    assert_eq!(t.vault.accrue_yield(), 100);
+    assert_eq!(t.vault.total_assets(), 1_100);
+}
+
+#[test]
 fn test_initialize_seeds_accrual_clock() {
     let t = VaultTest::setup();
     assert_eq!(t.vault.get_yield_rate(), 500);

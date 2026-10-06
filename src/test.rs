@@ -1201,6 +1201,39 @@ fn test_set_yield_rate_applies_at_boundary() {
 }
 
 #[test]
+fn test_yield_rate_accepts_zero_and_maximum_boundaries() {
+    let t = VaultTest::setup();
+    let user = Address::generate(&t.env);
+    t.mint(&user, 1_000);
+    t.vault.deposit(&user, &1_000u128);
+
+    let start = t.vault.get_last_accrued_at();
+
+    // Zero is a valid configured rate and must advance time without credit.
+    t.vault.set_yield_rate(&0u32);
+    t.env
+        .ledger()
+        .set_timestamp(start + crate::types::SECONDS_PER_YEAR);
+    assert_eq!(t.vault.accrue_yield(), 0);
+    assert_eq!(t.vault.total_assets(), 1_000);
+
+    // The documented maximum is accepted (only MAX + 1 is rejected) and
+    // deterministically credits 1000% simple yield over one year.
+    let boundary = t.vault.get_last_accrued_at();
+    t.vault
+        .set_yield_rate(&crate::types::MAX_YIELD_RATE_BPS);
+    assert_eq!(
+        t.vault.get_yield_rate(),
+        crate::types::MAX_YIELD_RATE_BPS
+    );
+    t.env
+        .ledger()
+        .set_timestamp(boundary + crate::types::SECONDS_PER_YEAR);
+    assert_eq!(t.vault.accrue_yield(), 10_000);
+    assert_eq!(t.vault.total_assets(), 11_000);
+}
+
+#[test]
 fn test_set_yield_rate_rejects_too_high() {
     let t = VaultTest::setup();
     let res = t

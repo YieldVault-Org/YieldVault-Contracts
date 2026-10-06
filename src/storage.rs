@@ -150,9 +150,7 @@ pub fn set_balance(env: &Env, user: &Address, balance: u128) {
 
 /// Returns the admin-approved expected Wasm hash, if one has been staged.
 pub fn get_expected_wasm_hash(env: &Env) -> Option<BytesN<32>> {
-    env.storage()
-        .instance()
-        .get(&DataKey::ExpectedWasmHash)
+    env.storage().instance().get(&DataKey::ExpectedWasmHash)
 }
 
 /// Stores the admin-approved Wasm hash that the next upgrade must present.
@@ -164,7 +162,59 @@ pub fn set_expected_wasm_hash(env: &Env, hash: &BytesN<32>) {
 
 /// Removes the staged expected Wasm hash after a successful upgrade.
 pub fn clear_expected_wasm_hash(env: &Env) {
+    env.storage().instance().remove(&DataKey::ExpectedWasmHash);
+}
+
+/// Reads the annual yield rate in basis points, defaulting to
+/// [`crate::types::MOCK_APY_BPS`] when unset.
+pub fn get_yield_rate_bps(env: &Env) -> u32 {
     env.storage()
         .instance()
-        .remove(&DataKey::ExpectedWasmHash);
+        .get(&DataKey::YieldRateBps)
+        .unwrap_or(crate::types::MOCK_APY_BPS)
+}
+
+/// Writes the annual yield rate in basis points.
+pub fn set_yield_rate_bps(env: &Env, rate_bps: u32) {
+    env.storage()
+        .instance()
+        .set(&DataKey::YieldRateBps, &rate_bps);
+}
+
+/// Reads the yield-rate configuration version, defaulting to 0 when unset.
+pub fn get_yield_rate_version(env: &Env) -> u32 {
+    env.storage()
+        .instance()
+        .get(&DataKey::YieldRateVersion)
+        .unwrap_or(0)
+}
+
+/// Writes the yield-rate configuration version.
+pub fn set_yield_rate_version(env: &Env, version: u32) {
+    env.storage()
+        .instance()
+        .set(&DataKey::YieldRateVersion, &version);
+}
+
+/// Returns whether the v3 accrual clock has been initialized.
+///
+/// Pre-v3 vault instances do not have this key after a Wasm upgrade. Callers
+/// must distinguish that migration state from a real timestamp of zero.
+pub fn has_last_accrued_at(env: &Env) -> bool {
+    env.storage().instance().has(&DataKey::LastAccruedAt)
+}
+
+/// Reads the last-accrued ledger timestamp, defaulting to 0 when unset.
+pub fn get_last_accrued_at(env: &Env) -> u64 {
+    env.storage()
+        .instance()
+        .get(&DataKey::LastAccruedAt)
+        .unwrap_or(0)
+}
+
+/// Writes the last-accrued ledger timestamp.
+pub fn set_last_accrued_at(env: &Env, timestamp: u64) {
+    env.storage()
+        .instance()
+        .set(&DataKey::LastAccruedAt, &timestamp);
 }

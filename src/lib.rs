@@ -392,6 +392,19 @@ impl YieldVault {
     /// [`Self::set_yield_rate`]. See those entrypoints for the full contract.
     fn accrue_yield_internal(env: &Env) -> Result<u128, Error> {
         let now = env.ledger().timestamp();
+
+        // A pre-v3 vault upgraded in place has no accrual clock or rate-version
+        // keys. Treat that as a migration boundary, not as unix timestamp zero:
+        // otherwise the first v3 accrual/rate change can manufacture a capped
+        // year of retroactive yield at the fallback rate.
+        if !storage::has_last_accrued_at(env) {
+            storage::set_yield_rate_bps(env, types::MOCK_APY_BPS);
+            storage::set_yield_rate_version(env, 1);
+            storage::set_last_accrued_at(env, now);
+            storage::extend_instance(env);
+            return Ok(0);
+        }
+
         let last = storage::get_last_accrued_at(env);
         if now < last {
             return Err(Error::TimestampRegression);
